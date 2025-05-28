@@ -117,7 +117,7 @@ Examples:
 
 ### Free Tier Limits
 - 🕐 **10 requests per minute**
-- 📅 **1,500 requests per day**
+- 📅 **1,400 requests per day**
 
 ### Generation Times
 - **3 scenes**: ~2 minutes
