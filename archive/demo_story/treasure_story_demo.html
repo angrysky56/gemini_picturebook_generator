@@ -1,0 +1,151 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Treasure Hunt Adventure Story - Demo</title>
+    <style>
+        body {
+            font-family: 'Comic Sans MS', cursive, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #f5deb3, #daa520);
+            min-height: 100vh;
+        }
+        .header {
+            text-align: center;
+            color: #8b4513;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            margin-bottom: 30px;
+        }
+        .demo-notice {
+            background: rgba(255, 193, 7, 0.9);
+            border: 2px solid #ff6347;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: center;
+            color: #8b4513;
+            font-weight: bold;
+        }
+        .scene {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            margin: 20px 0;
+            padding: 20px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+            border: 3px solid #daa520;
+        }
+        .scene-image {
+            width: 100%;
+            max-width: 600px;
+            height: auto;
+            border-radius: 10px;
+            border: 2px solid #8b4513;
+            margin: 15px 0;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .scene-text {
+            font-size: 16px;
+            line-height: 1.6;
+            color: #2f4f4f;
+            text-align: justify;
+        }
+        .scene-number {
+            color: #b8860b;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .generated-info {
+            text-align: center;
+            font-size: 12px;
+            color: #696969;
+            margin-top: 30px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 10px;
+        }
+        .api-info {
+            background: rgba(135, 206, 235, 0.9);
+            border: 2px solid #4169e1;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            color: #2f4f4f;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🏴‍☠️ Treasure Hunt Adventure 🏴‍☠️</h1>
+        <h2>Demo Story with Placeholder Images</h2>
+    </div>
+    
+    <div class="demo-notice">
+        🎨 This is a DEMO version with placeholder images! 🎨<br>
+        With a Google API key, the real version will generate unique, vibrant cartoon images for each scene.
+    </div>
+    
+    <div class="api-info">
+        <h3>🔑 To Generate Real AI Images:</h3>
+        <ol>
+            <li>Get a Google API key from <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a></li>
+            <li>Set the environment variable: <code>export GOOGLE_API_KEY="your-key-here"</code></li>
+            <li>Run the main script: <code>python treasure_story_generator.py</code></li>
+        </ol>
+    </div>
+    <div class="scene">
+        <div class="scene-number">Scene 1</div>
+        <img src="placeholder_scene_01.png" alt="Scene 1" class="scene-image">
+        <div class="scene-text"><strong>Scene 1: The Discovery<strong></div>
+        <div class="scene-text">In a dusty old attic, young Captain Whiskers the cat was exploring boxes left by his grandmother. As sunlight streamed through a cracked window, something glinted beneath a pile of old books. With careful paws, he uncovered a rolled-up parchment with mysterious markings - it was an ancient treasure map! The map showed winding paths through jungles, across rivers, and up mountains, with a large 'X' marking the spot where incredible riches awaited.</div>
+    </div>
+
+    <div class="scene">
+        <div class="scene-number">Scene 2</div>
+        <img src="placeholder_scene_02.png" alt="Scene 2" class="scene-image">
+        <div class="scene-text"><strong>Scene 2: Preparing for Adventure<strong></div>
+        <div class="scene-text">Captain Whiskers knew this was the adventure of a lifetime! He gathered his supplies: a sturdy backpack, a compass that belonged to his grandfather, a water bottle, some fish treats for energy, and most importantly, his lucky red bandana. He studied the map carefully, tracing the route with his claw. The first destination was the Whispering Woods, where the map indicated a hidden cave entrance.</div>
+    </div>
+
+    <div class="scene">
+        <div class="scene-number">Scene 3</div>
+        <img src="placeholder_scene_03.png" alt="Scene 3" class="scene-image">
+        <div class="scene-text"><strong>Scene 3: Into the Whispering Woods<strong></div>
+        <div class="scene-text">The Whispering Woods lived up to their name - every leaf seemed to murmur secrets as Captain Whiskers ventured deeper. Following the map's directions, he found the cave entrance hidden behind a curtain of hanging vines. Inside, glowing crystals lit the way, and ancient symbols on the walls matched those on his map. He discovered the first clue: a riddle carved in stone that would lead him to the next location.</div>
+    </div>
+
+    <div class="scene">
+        <div class="scene-number">Scene 4</div>
+        <img src="placeholder_scene_04.png" alt="Scene 4" class="scene-image">
+        <div class="scene-text"><strong>Scene 4: The Rushing River Challenge<strong></div>
+        <div class="scene-text">Solving the riddle led Captain Whiskers to the banks of Roaring Rapids River. The map showed he needed to cross, but the water was swift and deep. Thinking cleverly, he noticed fallen logs and stepping stones. With careful balance and his natural cat agility, he leaped from stone to stone, log to log, until he reached the other side where another clue awaited - a golden key hidden in the roots of an ancient oak tree.</div>
+    </div>
+
+    <div class="scene">
+        <div class="scene-number">Scene 5</div>
+        <img src="placeholder_scene_05.png" alt="Scene 5" class="scene-image">
+        <div class="scene-text"><strong>Scene 5: The Mountain Peak Mystery<strong></div>
+        <div class="scene-text">The golden key led Captain Whiskers up Crystal Peak Mountain to a mysterious door built into the rockface. As he inserted the key, the door creaked open to reveal a chamber filled with puzzles and traps. Using his wit and agility, he solved spinning wheel puzzles, avoided swinging pendulums, and navigated through a maze of mirrors. Each puzzle solved revealed part of the final location of the treasure.</div>
+    </div>
+
+    <div class="scene">
+        <div class="scene-number">Scene 6</div>
+        <img src="placeholder_scene_06.png" alt="Scene 6" class="scene-image">
+        <div class="scene-text"><strong>Scene 6: The Treasure Discovery<strong></div>
+        <div class="scene-text">Following the final clues, Captain Whiskers arrived at a beautiful hidden valley where waterfalls cascaded into rainbow pools. There, beneath the largest waterfall, was a cave entrance marked with the same symbol as his map. Inside, he found not just gold and jewels, but something even more valuable - ancient scrolls containing the wisdom and stories of generations past. Captain Whiskers realized the real treasure was the knowledge and confidence he'd gained on his journey, though the gold would certainly help him share more adventures with friends!</div>
+    </div>
+
+
+    <div class="generated-info">
+        <p>Demo generated on: 2025-05-27T14:51:47.050220</p>
+        <p>Model: demo-placeholder (placeholder content)</p>
+        <p>✨ Ready for real AI generation with Google Gemini ✨</p>
+    </div>
+</body>
+</html>

@@ -1,0 +1,128 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Story Gallery - AI Story Generator</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .nav {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .nav a {
+            color: #667eea;
+            text-decoration: none;
+            margin: 0 15px;
+            font-weight: bold;
+        }
+        .nav a:hover {
+            text-decoration: underline;
+        }
+        .story-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .story-card {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border-left: 4px solid #667eea;
+        }
+        .story-title {
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        .story-meta {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        .story-actions {
+            margin-top: 15px;
+        }
+        .story-actions a {
+            background: #667eea;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            text-decoration: none;
+            margin-right: 10px;
+            font-size: 0.9em;
+        }
+        .story-actions a:hover {
+            background: #5a6fd8;
+        }
+        .no-stories {
+            text-align: center;
+            color: #666;
+            margin: 50px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🖼️ Story Gallery</h1>
+            <p>Your AI-generated stories</p>
+        </div>
+
+        <div class="nav">
+            <a href="/">🏠 Generator</a>
+            <a href="/gallery">🖼️ Gallery</a>
+        </div>
+
+        {% if stories %}
+            <div class="story-grid">
+                {% for story in stories %}
+                <div class="story-card">
+                    <div class="story-title">{{ story.original_prompt[:50] }}{% if story.original_prompt|length > 50 %}...{% endif %}</div>
+                    <div class="story-meta">
+                        📊 {{ story.num_scenes }} scenes<br>
+                        🎨 {{ story.style or 'cartoon' }} style<br>
+                        📅 {{ story.generated_at[:19] }}
+                    </div>
+                    <div class="story-actions">
+                        {% if story.html_file %}
+                        <a href="/generated_stories/{{ story.folder }}/{{ story.html_file }}" target="_blank">📄 View</a>
+                        {% endif %}
+                        {% if story.pdf_file %}
+                        <a href="/generated_stories/{{ story.folder }}/{{ story.pdf_file }}" target="_blank">📄 PDF</a>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="no-stories">
+                <h3>No stories generated yet</h3>
+                <p>Create your first AI story to see it here!</p>
+                <a href="/" style="color: #667eea;">🚀 Generate Story</a>
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>
+    

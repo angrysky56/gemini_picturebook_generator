@@ -1,0 +1,8 @@
+venv
+.venv
+.env
+env
+__pycache__
+
+# folders
+generated_stories

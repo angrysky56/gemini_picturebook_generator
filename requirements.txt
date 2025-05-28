@@ -1,0 +1,6 @@
+google-genai>=1.16.0
+pillow>=10.0.0
+python-dotenv>=1.0.0
+streamlit>=1.28.0
+flask>=3.0.0
+weasyprint>=65.0.0
