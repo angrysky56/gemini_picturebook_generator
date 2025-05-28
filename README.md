@@ -120,32 +120,25 @@ Examples:
 - 📅 **1,400 requests per day**
 
 ### Generation Times
-- **3 scenes**: ~2 minutes
-- **6 scenes**: ~4 minutes
-- **9 scenes**: ~6 minutes
-- **12 scenes**: ~8 minutes
+- **10 scenes**: ~2 minutes
+- **100 scenes**: ~20 minutes
 
 The app automatically handles rate limits with built-in delays.
 
 ## 📁 Project Structure
 
 ```
-treasure_story_generator/
+gemini_picturebook_generator/
 ├── venv/                          # Virtual environment
-├── streamlit_stories/             # Web UI generated stories
 ├── generated_stories/             # CLI generated stories
-├── demo_story/                    # Demo with placeholders
 ├── story_web_ui.py               # 🌟 Main web interface
 ├── enhanced_story_generator.py   # CLI version
-├── treasure_story_generator.py   # Original treasure hunt
-├── create_demo.py                # Demo generator
-├── setup_env.py                  # Environment setup helper
 ├── .env                          # API key configuration
 ├── requirements.txt              # Dependencies
 └── README.md                     # This file
 ```
 
-## 🎯 Example Stories Created
+## 🎯 Example Stories
 
 ### 🐉 "A Dragon Who's Afraid of Heights"
 *6 scenes • Cartoon style • Character: Sparky*
@@ -174,6 +167,8 @@ The system supports various art styles:
 - Artistic watercolor paintings
 - Hand-drawn sketch aesthetics
 - Modern digital art
+
+### I doubt most of this works below
 
 ### Batch Generation
 For power users, you can modify the scripts to generate multiple stories:
@@ -216,7 +211,7 @@ chmod +x enhanced_story_generator.py
 chmod +x story_web_ui.py
 ```
 
-### inotify limits
+### inotify limits- script in archive if you want it, works AFAIK
 ```bash
 sudo ./fix_inotify.sh
 ```
@@ -248,24 +243,15 @@ This project is open source and available under the MIT License.
 
 ## 🙏 Acknowledgments
 
-- **Google Gemini AI** for the amazing image generation capabilities
-- **Streamlit** for the beautiful web framework
-- **The AI community** for inspiration and feedback
-
+- **Made with Claude Desktop** 
+- **Google Gemini AI** for the free image generation capabilities
+- [Medium post by David Liang](https://medium.com/@tonyalfredsson/my-3-15-am-start-to-building-an-ai-image-agent-with-google-adk-gpt-image-1-dev-life-log-1-c0dce525ea85)
 ---
-
-## 🎉 Start Creating!
-
-Ready to create your first AI-generated story with images?
-
-```bash
-cd /home/ty/Repositories/ai_workspace/treasure_story_generator
-source venv/bin/activate
-streamlit run story_web_ui.py
-```
 
 **Happy storytelling!** ✨📖🎨
 
 ---
 
-*Generated with ❤️ by AI Story Generator v1.0 • May 2025*
+License MIT
+
+*Generated with ❤️ by Claude Sonnet 4 • May 2025*
