@@ -55,9 +55,6 @@ You need a Google API key to use Gemini AI:
    echo "GOOGLE_API_KEY=$GOOGLE_API_KEY" > .env
    ```
 
-
-The web interface will open in your browser at `http://localhost:8080`
-
 ### 💻 Simple Use via Command Line- Working!!!
 3 questions will be asked- "Story idea, how many images, and proceed?".
 
@@ -74,6 +71,9 @@ python enhanced_story_generator.py
 source venv/bin/activate # On Windows venv/Scripts/activate
 python ./flask_ui.py
 ```
+
+The web interface will open in your browser at `http://localhost:8080`
+
 
 ### 🎭 Archived Original Demo
 See the original treasure hunt demo:
