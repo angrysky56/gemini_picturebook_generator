@@ -330,6 +330,7 @@ def create_html_display(story_data, output_dir):
 def create_pdf_from_html(html_path, output_dir):
     """
     Convert HTML story to PDF for easy sharing.
+    Now uses enhanced PDF generation with proper page breaks.
 
     Args:
         html_path (str): Path to the HTML file
@@ -353,13 +354,44 @@ def create_pdf_from_html(html_path, output_dir):
         pdf_filename = html_file.stem + '.pdf'
         pdf_path = output_dir / pdf_filename
 
-        print(f"📄 Converting to PDF: {pdf_filename}")
+        print(f"📄 Converting to PDF with enhanced formatting: {pdf_filename}")
 
-        # Convert HTML to PDF
+        # Convert HTML to PDF with improved settings
         if WEASYPRINT_AVAILABLE:
-            from weasyprint import HTML
-            HTML(filename=str(html_file)).write_pdf(str(pdf_path))
-            print(f"✅ PDF created: {pdf_path}")
+            from weasyprint import HTML, CSS
+            
+            # Enhanced CSS for better PDF formatting
+            enhanced_css = CSS(string="""
+                @page {
+                    size: A4;
+                    margin: 20mm;
+                }
+                .scene {
+                    page-break-before: always;
+                    page-break-inside: avoid;
+                }
+                .scene-image {
+                    max-width: 100%;
+                    max-height: 15cm;
+                    page-break-inside: avoid;
+                }
+                body {
+                    font-family: 'Times New Roman', serif;
+                    font-size: 12pt;
+                    line-height: 1.4;
+                }
+                .header {
+                    page-break-after: always;
+                }
+                .story-info {
+                    page-break-after: always;
+                }
+            """)
+            
+            html_doc = HTML(filename=str(html_file))
+            html_doc.write_pdf(str(pdf_path), stylesheets=[enhanced_css])
+            print(f"✅ Enhanced PDF created: {pdf_path}")
+            print("📖 Each scene now starts on a new page for better readability")
             return str(pdf_path)
         else:
             print("⚠️  WeasyPrint HTML class is not available.")

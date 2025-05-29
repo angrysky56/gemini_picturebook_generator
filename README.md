@@ -15,7 +15,7 @@ A completely FREE advanced AI-powered story generator that creates custom storie
 - 📊 **Flexible Length**: 3-12 scenes per story
 - ⚡ **Rate Limit Aware**: Built-in delays to respect API limits
 - 📱 **Responsive Design**: Works on desktop and mobile
-- 📄 **Includes PDF generation- working but not quite lining up the pages yet, and story gallery- not working.**: Creates HTML and PDF automatically.
+- 📄 **Includes PDF generation and story gallery- not working.**: Creates HTML and PDF automatically.
 
 ![alt text](image-1.png)
 
@@ -243,7 +243,7 @@ This project is open source and available under the MIT License.
 
 ## 🙏 Acknowledgments
 
-- **Made with Claude Desktop** 
+- **Made with Claude Desktop**
 - **Google Gemini AI** for the free image generation capabilities
 - [Medium post by David Liang](https://medium.com/@tonyalfredsson/my-3-15-am-start-to-building-an-ai-image-agent-with-google-adk-gpt-image-1-dev-life-log-1-c0dce525ea85)
 ---
