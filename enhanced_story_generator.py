@@ -14,8 +14,8 @@ import time
 from pathlib import Path
 from datetime import datetime
 from dotenv import load_dotenv
-from google import genai
-from google.genai import types
+import google.generativeai as genai
+from google.generativeai import types
 from PIL import Image
 from io import BytesIO
 try:
