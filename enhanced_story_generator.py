@@ -30,7 +30,7 @@ def setup_client():
     Initialize the Google GenAI client with API key from environment or .env file.
 
     Returns:
-        genai.Client: Configured client instance
+        None
 
     Raises:
         ValueError: If API key is not found
@@ -50,15 +50,14 @@ def setup_client():
     if not api_key:
         raise ValueError("API key is required to use the image generation service")
 
-    return genai.Client(api_key=api_key)
+    genai.configure(api_key=api_key)
 
 
-def generate_custom_story_with_images(client, story_prompt, num_scenes, output_dir, delay_between_requests=6):
+def generate_custom_story_with_images(story_prompt, num_scenes, output_dir, delay_between_requests=6):
     """
     Generate a custom story with images based on user input.
 
     Args:
-        client (genai.Client): Configured GenAI client
         story_prompt (str): User-defined story prompt
         num_scenes (int): Number of scenes to generate
         output_dir (Path): Directory to save images
@@ -68,7 +67,7 @@ def generate_custom_story_with_images(client, story_prompt, num_scenes, output_d
         dict: Story data with text and image paths
     """
     # Use the image generation model
-    model = "gemini-2.0-flash-preview-image-generation"
+    model_name = "gemini-2.0-flash-preview-image-generation" # Corrected model name
 
     # Enhanced prompt for better story generation
     full_prompt = f"""
@@ -91,20 +90,20 @@ def generate_custom_story_with_images(client, story_prompt, num_scenes, output_d
     print("⏱️  Rate limit: ~6 seconds between requests (10/minute limit)")
 
     try:
-        response = client.models.generate_content(
-            model=model,
+        model = genai.GenerativeModel(model_name=model_name)
+        response = model.generate_content(
             contents=full_prompt,
-            config=types.GenerateContentConfig(
-                response_modalities=["Text", "Image"],
-                # Add some generation parameters for better quality
+            generation_config=types.GenerationConfig( # Corrected to GenerationConfig
+                candidate_count=1, # Ensure we get one candidate
                 max_output_tokens=8192  # Allow for longer stories
             ),
+            # stream=False # Ensure non-streaming for this logic
         )
 
         story_data = {
             'scenes': [],
             'generated_at': datetime.now().isoformat(),
-            'model': model,
+            'model': model_name, # Use the model name string
             'original_prompt': story_prompt,
             'num_scenes': num_scenes
         }
@@ -416,7 +415,7 @@ def main():
 
     try:
         # Initialize client
-        client = setup_client()
+        setup_client()
 
         # Get user input for custom story
         print("\n📝 Let's create your custom story!")
@@ -449,7 +448,7 @@ def main():
             return None
 
         # Generate story with images
-        story_data = generate_custom_story_with_images(client, story_prompt, num_scenes, output_dir)
+        story_data = generate_custom_story_with_images(story_prompt, num_scenes, output_dir)
 
         if story_data:
             print("\n✅ Story generation completed successfully!")
