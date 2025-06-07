@@ -534,22 +534,34 @@ def main():
             story_prompt = "A brave explorer discovering magical creatures in an enchanted forest"
             print(f"Using default story: {story_prompt}")
 
-        num_scenes_input = input("How many scenes? (3-12 recommended, max 20): ").strip()
+        num_scenes_input = input("How many scenes? (1-9999+, your choice!): ").strip()
         try:
             num_scenes = int(num_scenes_input)
             if num_scenes < 1:
-                num_scenes = 3
-            elif num_scenes > 20:
-                num_scenes = 20
-                print("⚠️  Limited to 20 scenes for reasonable generation time")
+                num_scenes = 1
+                print("Setting minimum: 1 scene")
+            # No upper limit - user's choice!
         except ValueError:
             num_scenes = 6
             print("Using default: 6 scenes")
 
         # Show rate limiting info
         estimated_time = num_scenes * 6 / 60  # 6 seconds per request
-        print(f"\n⏱️  Estimated generation time: ~{estimated_time:.1f} minutes")
+        hours = int(estimated_time // 60)
+        minutes = int(estimated_time % 60)
+        
+        if hours > 0:
+            time_str = f"~{hours}h {minutes}m"
+        else:
+            time_str = f"~{estimated_time:.1f} minutes"
+            
+        print(f"\n⏱️  Estimated generation time: {time_str}")
         print("💡 This is due to API rate limits (10 requests/minute)")
+        
+        if num_scenes > 100:
+            print(f"🎯 Large story! {num_scenes} scenes will create an epic adventure!")
+        elif num_scenes > 50:
+            print(f"📚 Long story! {num_scenes} scenes will make a wonderful book!")
 
         proceed = input("Continue? (y/n): ").strip().lower()
         if proceed not in ['y', 'yes', '']:

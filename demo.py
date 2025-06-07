@@ -95,8 +95,13 @@ def interactive_demo():
         print(f"Using default: {story_prompt}")
     
     try:
-        num_scenes = int(input("How many scenes (1-6 recommended for demo): ") or "3")
-        num_scenes = max(1, min(num_scenes, 6))  # Limit for demo
+        num_scenes = int(input("How many scenes (1-6 recommended for quick demo, any number allowed): ") or "3")
+        num_scenes = max(1, num_scenes)  # Only enforce minimum of 1
+        if num_scenes > 10:
+            print(f"⏰ {num_scenes} scenes will take approximately {num_scenes * 6 / 60:.1f} minutes")
+            confirm = input("Continue? (y/n): ").strip().lower()
+            if confirm not in ['y', 'yes', '']:
+                return False
     except ValueError:
         num_scenes = 3
         print(f"Using default: {num_scenes} scenes")

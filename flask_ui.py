@@ -1,17 +1,24 @@
 #!/usr/bin/env python3
 """
-Flask Web UI for AI Story Generator
+Modern Flask Web UI for AI Story Generator - Version 2.0
 
-Imports and uses functions from enhanced_story_generator.py
-instead of duplicating code, making maintenance much easier.
+Complete rewrite with:
+- No artificial scene limitations 
+- Modern responsive design
+- Real-time progress tracking
+- Better error handling
+- Enhanced gallery
+- Mobile-friendly interface
 
-Author: Assistant
-Date: 2025-05-28
+Author: Assistant  
+Date: 2025-06-07
+Version: 2.0 - Unlimited scenes & modern UI
 """
 
 import json
 import threading
 import queue
+import os
 from pathlib import Path
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, send_from_directory, send_file
@@ -22,59 +29,92 @@ from enhanced_story_generator import (
     setup_client,
     generate_custom_story_with_images,
     create_html_display,
-    create_pdf_from_html
+    create_pdf_from_html,
+    test_api_connection
 )
 
 # Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = 'ai_story_generator_secret_key'
+app.secret_key = 'ai_story_generator_unlimited_v2'
 
 # Global variables for story generation
-generation_queue = queue.Queue()
 generation_results = {}
 
 def generate_story_background(story_id, story_prompt, num_scenes, character_name="", setting="", style="cartoon"):
-    """Generate story in background thread using imported functions."""
+    """Generate story in background thread with unlimited scenes."""
     try:
         # Update status
         generation_results[story_id] = {
-            'status': 'generating',
-            'progress': 10,
-            'message': 'Setting up story generation...'
+            'status': 'initializing',
+            'progress': 5,
+            'message': 'Setting up story generation...',
+            'current_scene': 0,
+            'total_scenes': num_scenes,
+            'scenes_completed': []
         }
 
-        # Get client using imported function
+        # Test API connection first
+        generation_results[story_id]['message'] = 'Testing API connection...'
+        generation_results[story_id]['progress'] = 10
+        
+        if not test_api_connection():
+            generation_results[story_id] = {
+                'status': 'error',
+                'progress': 0,
+                'message': 'API connection failed',
+                'error': 'Unable to connect to Gemini API. Check your API key.'
+            }
+            return
+
+        # Get client
+        generation_results[story_id]['message'] = 'Initializing AI client...'
+        generation_results[story_id]['progress'] = 15
+        
         client = setup_client()
         if not client:
             generation_results[story_id] = {
                 'status': 'error',
                 'progress': 0,
                 'message': 'Failed to initialize API client',
-                'error': 'API key not configured'
+                'error': 'API key not configured properly'
             }
             return
 
-        generation_results[story_id]['progress'] = 20
+        # Setup output directory
         generation_results[story_id]['message'] = 'Creating output directory...'
-
-        # Setup output directory with Flask-specific naming
+        generation_results[story_id]['progress'] = 20
+        
         project_dir = Path(__file__).parent
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         output_dir = project_dir / "generated_stories" / f"story_{timestamp}"
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        generation_results[story_id]['progress'] = 30
-        generation_results[story_id]['message'] = 'Generating story with AI...'
+        # Enhanced story prompt with style and character info
+        enhanced_prompt = story_prompt
+        if character_name:
+            enhanced_prompt = f"A story about {character_name}: {story_prompt}"
+        if setting:
+            enhanced_prompt += f" The story takes place in {setting}."
+        enhanced_prompt += f" Create this in {style} art style."
 
-        # Use the imported generation function
-        story_data = generate_custom_story_with_images(
-            client,
-            story_prompt,
-            num_scenes,
-            output_dir,
-            delay_between_requests=6
+        generation_results[story_id]['message'] = 'Starting AI story generation...'
+        generation_results[story_id]['progress'] = 25
+        
+        # Use the imported generation function with progress callback
+        def progress_callback(scene_num, total, message):
+            # Calculate progress: 25% for setup, 70% for generation, 5% for finishing
+            generation_progress = 25 + (scene_num / total) * 70
+            generation_results[story_id]['progress'] = int(generation_progress)
+            generation_results[story_id]['message'] = message
+            generation_results[story_id]['current_scene'] = scene_num
+            if scene_num > 0:
+                generation_results[story_id]['scenes_completed'].append(scene_num)
+
+        # Create a custom generation function with progress tracking
+        story_data = generate_story_with_progress(
+            client, enhanced_prompt, num_scenes, output_dir, progress_callback
         )
 
         if not story_data:
@@ -82,7 +122,7 @@ def generate_story_background(story_id, story_prompt, num_scenes, character_name
                 'status': 'error',
                 'progress': 0,
                 'message': 'Story generation failed',
-                'error': 'Failed to generate story content'
+                'error': 'Failed to generate story content. Check your API quota.'
             }
             return
 
@@ -95,28 +135,30 @@ def generate_story_background(story_id, story_prompt, num_scenes, character_name
             'output_dir': str(output_dir)
         })
 
-        generation_results[story_id]['progress'] = 80
+        generation_results[story_id]['progress'] = 95
         generation_results[story_id]['message'] = 'Creating HTML and PDF versions...'
 
-        # Create HTML display using imported function
+        # Create HTML display
         html_path = create_html_display(story_data, output_dir)
         story_data['html_path'] = html_path
 
-        # Create PDF version using imported function
+        # Create PDF version
         pdf_path = create_pdf_from_html(html_path, output_dir)
         if pdf_path:
             story_data['pdf_path'] = pdf_path
 
         # Save story metadata
         metadata_path = output_dir / "story_metadata.json"
-        with open(metadata_path, 'w') as f:
-            json.dump(story_data, f, indent=2)
+        with open(metadata_path, 'w', encoding='utf-8') as f:
+            json.dump(story_data, f, indent=2, ensure_ascii=False)
 
         generation_results[story_id] = {
             'status': 'complete',
             'progress': 100,
-            'message': 'Story generation complete!',
-            'data': story_data
+            'message': f'Story generation complete! Created {num_scenes} scenes.',
+            'data': story_data,
+            'current_scene': num_scenes,
+            'total_scenes': num_scenes
         }
 
     except Exception as e:
@@ -127,24 +169,135 @@ def generate_story_background(story_id, story_prompt, num_scenes, character_name
             'error': str(e)
         }
 
+def generate_story_with_progress(client, story_prompt, num_scenes, output_dir, progress_callback):
+    """Enhanced story generation with progress tracking."""
+    import time
+    from google.genai import types
+    
+    # Use the image generation model
+    model = "gemini-2.0-flash-preview-image-generation"
+
+    # Enhanced prompt for better story generation
+    full_prompt = f"""
+    You are an expert storyteller and illustrator creating a captivating picture book.
+    
+    Create a {num_scenes}-scene story based on this idea: "{story_prompt}"
+
+    Requirements:
+    - Each scene should advance the story and be distinct
+    - Include vivid, engaging descriptions suitable for illustration
+    - Make it artistic, engaging, and age-appropriate
+    - Generate both descriptive text and a corresponding image for each scene
+    - Keep each scene description between 2-4 sentences
+
+    Please create exactly {num_scenes} scenes, each with descriptive text and an accompanying image.
+    Structure: Scene 1: [description], Scene 2: [description], etc.
+    """
+
+    progress_callback(0, num_scenes, f"Generating {num_scenes}-scene story with AI...")
+
+    try:
+        # Create the configuration properly
+        config = types.GenerateContentConfig(
+            response_modalities=["Text", "Image"],
+            max_output_tokens=8192 * 2  # Increased for longer stories
+        )
+        
+        response = client.models.generate_content(
+            model=model,
+            contents=full_prompt,
+            config=config
+        )
+
+        if not response or not response.candidates or not response.candidates[0].content.parts:
+            raise ValueError("No valid response from API")
+
+        story_data = {
+            'scenes': [],
+            'generated_at': datetime.now().isoformat(),
+            'model': model,
+            'original_prompt': story_prompt,
+            'num_scenes': num_scenes,
+            'total_parts': len(response.candidates[0].content.parts)
+        }
+
+        scene_counter = 1
+        total_parts = len(response.candidates[0].content.parts)
+        
+        progress_callback(0, num_scenes, f"Processing {total_parts} AI response parts...")
+
+        for i, part in enumerate(response.candidates[0].content.parts):
+            if hasattr(part, 'text') and part.text is not None:
+                story_data['scenes'].append({
+                    'type': 'text',
+                    'content': part.text,
+                    'scene_number': scene_counter if scene_counter <= num_scenes else 'additional',
+                    'part_index': i
+                })
+
+            elif hasattr(part, 'inline_data') and part.inline_data is not None:
+                try:
+                    # Save image to file
+                    from PIL import Image
+                    from io import BytesIO
+                    
+                    image = Image.open(BytesIO(part.inline_data.data))
+                    image_filename = f"scene_{scene_counter:02d}.png"
+                    image_path = output_dir / image_filename
+
+                    # Save image with error handling
+                    image.save(image_path, 'PNG')
+                    
+                    progress_callback(scene_counter, num_scenes, f"Scene {scene_counter} image created")
+
+                    story_data['scenes'].append({
+                        'type': 'image',
+                        'filename': image_filename,
+                        'path': str(image_path),
+                        'scene_number': scene_counter,
+                        'part_index': i,
+                        'image_size': image.size
+                    })
+
+                    scene_counter += 1
+
+                    # Rate limiting delay (respect 10 requests per minute)
+                    if scene_counter <= num_scenes and i < total_parts - 1:
+                        progress_callback(scene_counter - 1, num_scenes, f"Rate limiting pause (6 seconds)...")
+                        time.sleep(6)
+                        
+                except Exception as img_error:
+                    progress_callback(scene_counter - 1, num_scenes, f"Error saving image {scene_counter}: {img_error}")
+                    continue
+
+        # Save story metadata
+        metadata_path = output_dir / "story_metadata.json"
+        with open(metadata_path, 'w', encoding='utf-8') as f:
+            json.dump(story_data, f, indent=2, ensure_ascii=False)
+
+        progress_callback(num_scenes, num_scenes, f"Story generation completed!")
+        return story_data
+
+    except Exception as e:
+        progress_callback(0, num_scenes, f"Error: {str(e)}")
+        return None
+
 @app.route('/')
 def index():
-    """Main page."""
-    client = setup_client()
-    api_key_configured = client is not None
-
+    """Main page with modern interface."""
+    api_key_configured = bool(os.getenv('GOOGLE_API_KEY'))
     return render_template('index.html', api_key_configured=api_key_configured)
 
 @app.route('/generate', methods=['POST'])
 def generate_story():
-    """Start story generation."""
-    client = setup_client()
-    if not client:
+    """Start unlimited story generation."""
+    if not os.getenv('GOOGLE_API_KEY'):
         return jsonify({'error': 'API key not configured'}), 400
 
     data = request.json
-    if data is None:
-        return jsonify({'error': 'Invalid JSON or missing Content-Type header'}), 400
+    if not data:
+        return jsonify({'error': 'Invalid request data'}), 400
+        
     story_prompt = data.get('story_prompt', '').strip()
     num_scenes = int(data.get('num_scenes', 6))
     character_name = data.get('character_name', '').strip()
@@ -154,14 +307,12 @@ def generate_story():
     if not story_prompt:
         return jsonify({'error': 'Story prompt is required'}), 400
 
-    # Validate scene count (use same limits as enhanced_story_generator)
+    # NO ARTIFICIAL LIMITS! User decides how many scenes they want
     if num_scenes < 1:
-        num_scenes = 3
-    elif num_scenes > 1400:
-        num_scenes = 1400
+        num_scenes = 1
 
     # Generate unique story ID
-    story_id = f"story_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    story_id = f"story_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}"
 
     # Start background generation
     thread = threading.Thread(
@@ -171,11 +322,15 @@ def generate_story():
     thread.daemon = True
     thread.start()
 
-    return jsonify({'story_id': story_id})
+    return jsonify({
+        'story_id': story_id,
+        'num_scenes': num_scenes,
+        'estimated_minutes': num_scenes * 6 / 60
+    })
 
 @app.route('/status/<story_id>')
 def get_status(story_id):
-    """Get generation status."""
+    """Get detailed generation status."""
     if story_id in generation_results:
         return jsonify(generation_results[story_id])
     else:
@@ -184,7 +339,6 @@ def get_status(story_id):
 @app.route('/images/<path:filename>')
 def serve_image(filename):
     """Serve generated images."""
-    # Find the image in any of the story directories
     stories_dir = Path(__file__).parent / "generated_stories"
     for story_dir in stories_dir.glob("story_*"):
         image_path = story_dir / filename
@@ -194,38 +348,28 @@ def serve_image(filename):
 
 @app.route('/download/<story_id>/<format>')
 def download_story(story_id, format):
-    """Download story in specified format (html or pdf)."""
-    if story_id not in generation_results:
-        return "Story not found", 404
-
-    result = generation_results[story_id]
-    if result['status'] != 'complete':
+    """Download story in specified format."""
+    if story_id not in generation_results or generation_results[story_id]['status'] != 'complete':
         return "Story not ready", 400
 
-    story_data = result['data']
+    story_data = generation_results[story_id]['data']
+    safe_name = "".join(c for c in story_data.get('original_prompt', 'story')[:30] if c.isalnum() or c in (' ', '-', '_')).strip()
 
     if format == 'html' and 'html_path' in story_data:
         html_path = Path(story_data['html_path'])
         if html_path.exists():
-            return send_file(
-                html_path,
-                as_attachment=True,
-                download_name=f"{story_data.get('original_prompt', 'story')[:30]}.html"
-            )
+            return send_file(html_path, as_attachment=True, download_name=f"{safe_name}.html")
+    
     elif format == 'pdf' and 'pdf_path' in story_data:
         pdf_path = Path(story_data['pdf_path'])
         if pdf_path.exists():
-            return send_file(
-                pdf_path,
-                as_attachment=True,
-                download_name=f"{story_data.get('original_prompt', 'story')[:30]}.pdf"
-            )
+            return send_file(pdf_path, as_attachment=True, download_name=f"{safe_name}.pdf")
 
     return "File not found", 404
 
 @app.route('/gallery')
 def gallery():
-    """Show gallery of all generated stories."""
+    """Enhanced gallery with better sorting and display."""
     stories_dir = Path(__file__).parent / "generated_stories"
     stories = []
 
@@ -234,308 +378,559 @@ def gallery():
             metadata_file = story_dir / "story_metadata.json"
             if metadata_file.exists():
                 try:
-                    with open(metadata_file, 'r') as f:
+                    with open(metadata_file, 'r', encoding='utf-8') as f:
                         metadata = json.load(f)
 
-                    # Find HTML file
+                    # Find files
                     html_files = list(story_dir.glob("*.html"))
+                    pdf_files = list(story_dir.glob("*.pdf"))
+                    image_files = list(story_dir.glob("scene_*.png"))
+
                     if html_files:
                         metadata['html_file'] = html_files[0].name
-
-                    # Check for PDF
-                    pdf_files = list(story_dir.glob("*.pdf"))
                     if pdf_files:
                         metadata['pdf_file'] = pdf_files[0].name
 
                     metadata['folder'] = story_dir.name
+                    metadata['image_count'] = len(image_files)
+                    metadata['file_size'] = sum(f.stat().st_size for f in story_dir.iterdir()) / 1024 / 1024  # MB
+                    
                     stories.append(metadata)
-                except Exception:
+                except Exception as e:
                     continue
 
     return render_template('gallery.html', stories=stories)
 
+@app.route('/generated_stories/<path:filename>')
+def serve_generated_file(filename):
+    """Serve files from generated_stories directory."""
+    stories_dir = Path(__file__).parent / "generated_stories"
+    return send_from_directory(str(stories_dir), filename)
+
 if __name__ == '__main__':
-    # Create templates directory and HTML templates
+    # Create templates directory and enhanced templates
     templates_dir = Path(__file__).parent / "templates"
     templates_dir.mkdir(exist_ok=True)
 
-    # Enhanced index template with better styling and PDF support
+    # Modern, responsive index template with unlimited scenes
     index_template = """
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Story Generator</title>
+    <title>AI Story Generator - Unlimited Scenes</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             color: #333;
+            line-height: 1.6;
         }
+
         .container {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 15px;
-            padding: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
         }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
         .header {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 40px;
         }
+
         .header h1 {
-            color: #4a4a4a;
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
             margin-bottom: 10px;
         }
-        .nav {
-            text-align: center;
-            margin-bottom: 20px;
+
+        .header p {
+            font-size: 1.2rem;
+            color: #666;
+            font-weight: 300;
         }
+
+        .nav {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
         .nav a {
             color: #667eea;
             text-decoration: none;
-            margin: 0 15px;
-            font-weight: bold;
+            font-weight: 500;
+            padding: 10px 20px;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
+
         .nav a:hover {
-            text-decoration: underline;
+            background: rgba(102, 126, 234, 0.1);
+            transform: translateY(-2px);
         }
+
+        .form-container {
+            display: grid;
+            gap: 25px;
+        }
+
         .form-group {
-            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
         }
+
         .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-            color: #555;
+            font-weight: 600;
+            color: #444;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
-        .form-group input, .form-group select, .form-group textarea {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            font-size: 14px;
-            box-sizing: border-box;
-        }
+
+        .form-group input, 
+        .form-group select, 
         .form-group textarea {
-            height: 100px;
+            padding: 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .form-group input:focus, 
+        .form-group select:focus, 
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-group textarea {
+            min-height: 120px;
             resize: vertical;
         }
+
         .form-row {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 25px;
         }
+
+        .scene-input-container {
+            position: relative;
+        }
+
+        .scene-input {
+            width: 100%;
+        }
+
+        .scene-presets {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        .preset-btn {
+            background: #f8f9fa;
+            border: 1px solid #e1e5e9;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: #666;
+        }
+
+        .preset-btn:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
         .generate-btn {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 15px 30px;
+            padding: 18px 40px;
             border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: bold;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 600;
             cursor: pointer;
-            width: 100%;
-            margin: 20px 0;
+            transition: all 0.3s ease;
+            margin: 30px auto;
+            display: block;
+            min-width: 200px;
         }
-        .generate-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+
+        .generate-btn:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
         }
+
         .generate-btn:disabled {
             background: #ccc;
             cursor: not-allowed;
             transform: none;
         }
+
         .progress-container {
             display: none;
-            margin: 20px 0;
+            margin: 30px 0;
+            text-align: center;
         }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .progress-text {
+            font-weight: 500;
+            color: #444;
+        }
+
+        .progress-stats {
+            font-size: 14px;
+            color: #666;
+        }
+
         .progress-bar {
             width: 100%;
-            height: 20px;
+            height: 12px;
             background: #f0f0f0;
-            border-radius: 10px;
+            border-radius: 6px;
             overflow: hidden;
+            margin-bottom: 15px;
         }
+
         .progress-fill {
             height: 100%;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             width: 0%;
-            transition: width 0.3s ease;
+            transition: width 0.5s ease;
+            border-radius: 6px;
         }
-        .progress-text {
-            text-align: center;
-            margin: 10px 0;
-            font-weight: bold;
-        }
+
         .story-container {
             display: none;
-            margin-top: 30px;
+            margin-top: 40px;
         }
-        .scene {
-            background: #f9f9f9;
-            border-radius: 10px;
-            padding: 20px;
-            margin: 20px 0;
-            border-left: 4px solid #667eea;
+
+        .story-header {
+            text-align: center;
+            padding: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            margin-bottom: 30px;
         }
-        .scene h3 {
-            color: #667eea;
-            margin-top: 0;
+
+        .story-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 10px;
         }
-        .scene img {
-            max-width: 100%;
-            height: auto;
-            border-radius: 8px;
-            margin: 15px 0;
+
+        .story-meta {
+            opacity: 0.9;
+            font-size: 1.1rem;
         }
-        .scene-text {
-            line-height: 1.6;
-            color: #555;
-        }
+
         .download-section {
-            background: #e8f5e8;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 20px 0;
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 30px;
             text-align: center;
         }
+
         .download-btn {
             background: #28a745;
             color: white;
-            padding: 10px 20px;
+            padding: 12px 25px;
             border: none;
-            border-radius: 5px;
-            margin: 5px;
+            border-radius: 8px;
+            margin: 8px;
             cursor: pointer;
             text-decoration: none;
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+            transition: all 0.3s ease;
         }
+
         .download-btn:hover {
             background: #218838;
+            transform: translateY(-2px);
         }
-        .error {
-            background: #ffebee;
-            color: #c62828;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 10px 0;
-            border-left: 4px solid #c62828;
+
+        .scene {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin: 25px 0;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border-left: 4px solid #667eea;
         }
-        .api-warning {
-            background: #fff3e0;
-            color: #ef6c00;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 10px 0;
-            border-left: 4px solid #ef6c00;
+
+        .scene-number {
+            color: #667eea;
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
-        .rate-limit-info {
+
+        .scene img {
+            width: 100%;
+            max-width: 600px;
+            height: auto;
+            border-radius: 12px;
+            margin: 20px auto;
+            display: block;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+
+        .scene-text {
+            font-size: 1.1rem;
+            line-height: 1.8;
+            color: #555;
+            margin: 15px 0;
+        }
+
+        .alert {
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .estimation-info {
             background: #e3f2fd;
             color: #1976d2;
             padding: 15px;
-            border-radius: 8px;
-            margin: 10px 0;
+            border-radius: 10px;
+            margin: 15px 0;
+            font-size: 14px;
             border-left: 4px solid #1976d2;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .glass-card {
+                padding: 25px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .nav {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>🎨 AI Story Generator</h1>
-            <p>Create amazing stories with AI-generated images</p>
-        </div>
-
-        <div class="nav">
-            <a href="/">🏠 Generator</a>
-            <a href="/gallery">🖼️ Gallery</a>
-        </div>
-
-        {% if not api_key_configured %}
-        <div class="api-warning">
-            <strong>⚠️ API Key Required</strong><br>
-            Please configure your Google API key in the .env file to use this application.
-        </div>
-        {% else %}
-
-        <div class="rate-limit-info">
-            <strong>📊 API Limits:</strong> 10 requests/minute, 1,400/day<br>
-            <strong>🎯 Max scenes:</strong> Up to 1,400 scenes per story (full daily free allowance!)
-        </div>
-
-        <form id="storyForm">
-            <div class="form-group">
-                <label for="story_prompt">What's your story idea? *</label>
-                <textarea id="story_prompt" name="story_prompt" placeholder="e.g., A young dragon learning to fly, A robot discovering emotions, A magical library where books come alive..." required></textarea>
+        <div class="glass-card">
+            <div class="header">
+                <h1><i class="fas fa-magic"></i> AI Story Generator</h1>
+                <p>Create unlimited epic adventures with AI-generated images</p>
             </div>
 
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="character_name">Main character name (optional)</label>
-                    <input type="text" id="character_name" name="character_name" placeholder="e.g., Luna, Max, Zara...">
+            <div class="nav">
+                <a href="/"><i class="fas fa-home"></i> Generator</a>
+                <a href="/gallery"><i class="fas fa-images"></i> Gallery</a>
+            </div>
+
+            {% if not api_key_configured %}
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle"></i>
+                <div>
+                    <strong>API Key Required</strong><br>
+                    Please configure your Google API key in the .env file to use this application.
                 </div>
-                <div class="form-group">
-                    <label for="setting">Story setting (optional)</label>
-                    <input type="text" id="setting" name="setting" placeholder="e.g., enchanted forest, space station...">
+            </div>
+            {% else %}
+
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i>
+                <div>
+                    <strong>Unlimited Scenes!</strong> Create stories with as many scenes as you want. 
+                    API limits: 10 requests/minute (~6 seconds per scene).
                 </div>
             </div>
 
-            <div class="form-row">
+            <form id="storyForm" class="form-container">
                 <div class="form-group">
-                    <label for="style">Art style</label>
-                    <select id="style" name="style">
-                        <option value="cartoon">Cartoon</option>
-                        <option value="anime">Anime</option>
-                        <option value="realistic">Realistic</option>
-                        <option value="watercolor">Watercolor</option>
-                        <option value="sketch">Sketch</option>
-                        <option value="digital art">Digital Art</option>
-                    </select>
+                    <label for="story_prompt"><i class="fas fa-lightbulb"></i> What's your story idea? *</label>
+                    <textarea id="story_prompt" name="story_prompt" 
+                              placeholder="Describe your epic adventure... A brave dragon who's afraid of heights, a robot that dreams of becoming a chef, a magical library where stories come alive..." 
+                              required></textarea>
                 </div>
-                <div class="form-group">
-                    <label for="num_scenes">Number of scenes (3-50 recommended)</label>
-                    <select id="num_scenes" name="num_scenes">
-                        <option value="3">3 scenes (~2 min)</option>
-                        <option value="5">5 scenes (~3 min)</option>
-                        <option value="6" selected>6 scenes (~4 min)</option>
-                        <option value="8">8 scenes (~5 min)</option>
-                        <option value="10">10 scenes (~7 min)</option>
-                        <option value="15">15 scenes (~10 min)</option>
-                        <option value="20">20 scenes (~15 min)</option>
-                        <option value="30">30 scenes (~20 min)</option>
-                        <option value="50">50 scenes (~35 min)</option>
-                    </select>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="character_name"><i class="fas fa-user"></i> Main character name</label>
+                        <input type="text" id="character_name" name="character_name" 
+                               placeholder="e.g., Luna, Max, Zara, Captain Stardust...">
+                    </div>
+                    <div class="form-group">
+                        <label for="setting"><i class="fas fa-map-marker-alt"></i> Story setting</label>
+                        <input type="text" id="setting" name="setting" 
+                               placeholder="e.g., enchanted forest, space station, underwater city...">
+                    </div>
                 </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="style"><i class="fas fa-palette"></i> Art style</label>
+                        <select id="style" name="style">
+                            <option value="cartoon">🎨 Cartoon</option>
+                            <option value="anime">🇯🇵 Anime</option>
+                            <option value="realistic">📸 Realistic</option>
+                            <option value="watercolor">🎨 Watercolor</option>
+                            <option value="digital art">💻 Digital Art</option>
+                            <option value="oil painting">🖼️ Oil Painting</option>
+                            <option value="sketch">✏️ Sketch</option>
+                            <option value="fantasy art">⚔️ Fantasy Art</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="num_scenes"><i class="fas fa-list-ol"></i> Number of scenes</label>
+                        <div class="scene-input-container">
+                            <input type="number" id="num_scenes" name="num_scenes" value="6" min="1" max="9999" class="scene-input">
+                            <div class="scene-presets">
+                                <button type="button" class="preset-btn" onclick="setScenes(3)">3 Quick</button>
+                                <button type="button" class="preset-btn" onclick="setScenes(6)">6 Standard</button>
+                                <button type="button" class="preset-btn" onclick="setScenes(12)">12 Long</button>
+                                <button type="button" class="preset-btn" onclick="setScenes(25)">25 Epic</button>
+                                <button type="button" class="preset-btn" onclick="setScenes(50)">50 Novel</button>
+                                <button type="button" class="preset-btn" onclick="setScenes(100)">100 Saga</button>
+                            </div>
+                        </div>
+                        <div id="estimationInfo" class="estimation-info">
+                            <i class="fas fa-clock"></i> Estimated time: ~0.6 minutes (6 scenes)
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="generate-btn" id="generateBtn">
+                    <i class="fas fa-rocket"></i> Generate Story
+                </button>
+            </form>
+
+            <div class="progress-container" id="progressContainer">
+                <div class="progress-header">
+                    <div class="progress-text" id="progressText">Preparing...</div>
+                    <div class="progress-stats" id="progressStats">0%</div>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div id="detailedProgress" style="font-size: 14px; color: #666; margin-top: 10px;"></div>
             </div>
 
-            <button type="submit" class="generate-btn" id="generateBtn">
-                🚀 Generate Story
-            </button>
-        </form>
-
-        <div class="progress-container" id="progressContainer">
-            <div class="progress-text" id="progressText">Preparing...</div>
-            <div class="progress-bar">
-                <div class="progress-fill" id="progressFill"></div>
+            <div class="story-container" id="storyContainer">
+                <!-- Story content will be inserted here -->
             </div>
-        </div>
 
-        <div class="story-container" id="storyContainer">
-            <!-- Story content will be inserted here -->
+            {% endif %}
         </div>
-
-        {% endif %}
     </div>
 
     <script>
         let currentStoryId = null;
         let pollInterval = null;
+
+        // Update estimation when scene count changes
+        document.getElementById('num_scenes').addEventListener('input', updateEstimation);
+
+        function setScenes(count) {
+            document.getElementById('num_scenes').value = count;
+            updateEstimation();
+        }
+
+        function updateEstimation() {
+            const scenes = parseInt(document.getElementById('num_scenes').value) || 6;
+            const minutes = scenes * 6 / 60;
+            const hours = Math.floor(minutes / 60);
+            const remainingMinutes = Math.floor(minutes % 60);
+            
+            let timeStr;
+            if (hours > 0) {
+                timeStr = `~${hours}h ${remainingMinutes}m`;
+            } else {
+                timeStr = `~${minutes.toFixed(1)} minutes`;
+            }
+            
+            document.getElementById('estimationInfo').innerHTML = 
+                `<i class="fas fa-clock"></i> Estimated time: ${timeStr} (${scenes} scenes)`;
+        }
 
         document.getElementById('storyForm').addEventListener('submit', function(e) {
             e.preventDefault();
@@ -546,8 +941,29 @@ if __name__ == '__main__':
                 character_name: formData.get('character_name'),
                 setting: formData.get('setting'),
                 style: formData.get('style'),
-                num_scenes: formData.get('num_scenes')
+                num_scenes: parseInt(formData.get('num_scenes'))
             };
+
+            // Validate
+            if (!data.story_prompt.trim()) {
+                alert('Please enter a story idea');
+                return;
+            }
+
+            if (data.num_scenes < 1) {
+                alert('Please enter at least 1 scene');
+                return;
+            }
+
+            // Confirmation for large stories
+            if (data.num_scenes > 50) {
+                const confirm = window.confirm(
+                    `You're about to create a ${data.num_scenes}-scene story! \\n` +
+                    `This will take approximately ${(data.num_scenes * 6 / 60).toFixed(1)} minutes. \\n` +
+                    `Are you sure you want to continue?`
+                );
+                if (!confirm) return;
+            }
 
             // Start generation
             fetch('/generate', {
@@ -574,14 +990,14 @@ if __name__ == '__main__':
 
         function showProgress() {
             document.getElementById('generateBtn').disabled = true;
-            document.getElementById('generateBtn').textContent = '⏳ Generating...';
+            document.getElementById('generateBtn').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
             document.getElementById('progressContainer').style.display = 'block';
             document.getElementById('storyContainer').style.display = 'none';
         }
 
         function hideProgress() {
             document.getElementById('generateBtn').disabled = false;
-            document.getElementById('generateBtn').textContent = '🚀 Generate Story';
+            document.getElementById('generateBtn').innerHTML = '<i class="fas fa-rocket"></i> Generate Story';
             document.getElementById('progressContainer').style.display = 'none';
         }
 
@@ -605,15 +1021,23 @@ if __name__ == '__main__':
                     .catch(error => {
                         console.error('Polling error:', error);
                     });
-            }, 2000); // Poll every 2 seconds
+            }, 2000);
         }
 
         function updateProgress(status) {
             const progressFill = document.getElementById('progressFill');
             const progressText = document.getElementById('progressText');
+            const progressStats = document.getElementById('progressStats');
+            const detailedProgress = document.getElementById('detailedProgress');
 
             progressFill.style.width = status.progress + '%';
             progressText.textContent = status.message || 'Processing...';
+            progressStats.textContent = status.progress + '%';
+
+            if (status.current_scene && status.total_scenes) {
+                detailedProgress.innerHTML = 
+                    `<i class="fas fa-images"></i> Scene ${status.current_scene} of ${status.total_scenes} completed`;
+            }
         }
 
         function displayStory(storyData) {
@@ -622,11 +1046,15 @@ if __name__ == '__main__':
 
             // Story header
             const header = document.createElement('div');
+            header.className = 'story-header';
             header.innerHTML = `
-                <h2>🎨 ${storyData.original_prompt}</h2>
-                <p><strong>Character:</strong> ${storyData.character_name || 'Auto-chosen'} |
-                   <strong>Setting:</strong> ${storyData.setting || 'Auto-chosen'} |
-                   <strong>Style:</strong> ${storyData.style}</p>
+                <div class="story-title">${storyData.original_prompt}</div>
+                <div class="story-meta">
+                    <i class="fas fa-user"></i> ${storyData.character_name || 'Auto-chosen'} | 
+                    <i class="fas fa-map-marker-alt"></i> ${storyData.setting || 'Auto-chosen'} | 
+                    <i class="fas fa-palette"></i> ${storyData.style} style | 
+                    <i class="fas fa-images"></i> ${storyData.num_scenes} scenes
+                </div>
             `;
             container.appendChild(header);
 
@@ -634,9 +1062,13 @@ if __name__ == '__main__':
             const downloadSection = document.createElement('div');
             downloadSection.className = 'download-section';
             downloadSection.innerHTML = `
-                <h3>📥 Download Your Story</h3>
-                <a href="/download/${currentStoryId}/html" class="download-btn">📄 Download HTML</a>
-                <a href="/download/${currentStoryId}/pdf" class="download-btn">📄 Download PDF</a>
+                <h3><i class="fas fa-download"></i> Download Your Story</h3>
+                <a href="/download/${currentStoryId}/html" class="download-btn">
+                    <i class="fas fa-file-code"></i> Download HTML
+                </a>
+                <a href="/download/${currentStoryId}/pdf" class="download-btn">
+                    <i class="fas fa-file-pdf"></i> Download PDF
+                </a>
             `;
             container.appendChild(downloadSection);
 
@@ -665,17 +1097,17 @@ if __name__ == '__main__':
                 const sceneDiv = document.createElement('div');
                 sceneDiv.className = 'scene';
 
-                let sceneHTML = `<h3>🎬 Scene ${sceneNum}</h3>`;
+                let sceneHTML = `<div class="scene-number"><i class="fas fa-play-circle"></i> Scene ${sceneNum}</div>`;
 
                 // Add image
                 if (imageScenes[sceneNum]) {
-                    sceneHTML += `<img src="/images/${imageScenes[sceneNum].filename}" alt="Scene ${sceneNum}">`;
+                    sceneHTML += `<img src="/images/${imageScenes[sceneNum].filename}" alt="Scene ${sceneNum}" loading="lazy">`;
                 }
 
                 // Add text
                 if (textScenes[sceneNum]) {
                     textScenes[sceneNum].forEach(text => {
-                        sceneHTML += `<div class="scene-text">${text.replace(/\n/g, '<br>')}</div>`;
+                        sceneHTML += `<div class="scene-text">${text.replace(/\\n/g, '<br>')}</div>`;
                     });
                 }
 
@@ -684,19 +1116,30 @@ if __name__ == '__main__':
             });
 
             container.style.display = 'block';
+            
+            // Scroll to story
+            container.scrollIntoView({ behavior: 'smooth' });
         }
 
         function showError(message) {
             const container = document.getElementById('storyContainer');
-            container.innerHTML = `<div class="error"><strong>Error:</strong> ${message}</div>`;
+            container.innerHTML = `
+                <div class="alert alert-error">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <div><strong>Error:</strong> ${message}</div>
+                </div>
+            `;
             container.style.display = 'block';
         }
+
+        // Initialize
+        updateEstimation();
     </script>
 </body>
 </html>
     """
 
-    # Gallery template
+    # Enhanced gallery template
     gallery_template = """
 <!DOCTYPE html>
 <html lang="en">
@@ -704,137 +1147,347 @@ if __name__ == '__main__':
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Story Gallery - AI Story Generator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             color: #333;
+            line-height: 1.6;
         }
+
         .container {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 15px;
-            padding: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
         }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
         .header {
             text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .nav {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
             margin-bottom: 30px;
         }
-        .nav {
-            text-align: center;
-            margin-bottom: 20px;
-        }
+
         .nav a {
             color: #667eea;
             text-decoration: none;
-            margin: 0 15px;
-            font-weight: bold;
+            font-weight: 500;
+            padding: 10px 20px;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
+
         .nav a:hover {
-            text-decoration: underline;
+            background: rgba(102, 126, 234, 0.1);
+            transform: translateY(-2px);
         }
+
         .story-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 25px;
         }
+
         .story-card {
             background: white;
-            border-radius: 10px;
-            padding: 15px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
             border-left: 4px solid #667eea;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
         }
+
+        .story-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+        }
+
         .story-title {
-            font-weight: bold;
-            color: #667eea;
-            margin-bottom: 10px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+            line-height: 1.4;
         }
+
         .story-meta {
-            font-size: 0.9em;
+            font-size: 0.9rem;
             color: #666;
-            margin-bottom: 10px;
+            margin-bottom: 20px;
+            display: grid;
+            gap: 8px;
         }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .story-stats {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            text-align: center;
+        }
+
+        .stat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .stat-value {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: #666;
+        }
+
         .story-actions {
-            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
         }
+
         .story-actions a {
             background: #667eea;
             color: white;
-            padding: 5px 10px;
-            border-radius: 5px;
+            padding: 10px 15px;
+            border-radius: 8px;
             text-decoration: none;
-            margin-right: 10px;
-            font-size: 0.9em;
+            font-size: 0.9rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.3s ease;
+            flex: 1;
+            justify-content: center;
         }
+
         .story-actions a:hover {
             background: #5a6fd8;
+            transform: translateY(-2px);
         }
+
+        .story-actions a.pdf {
+            background: #dc3545;
+        }
+
+        .story-actions a.pdf:hover {
+            background: #c82333;
+        }
+
         .no-stories {
             text-align: center;
             color: #666;
-            margin: 50px 0;
+            margin: 80px 0;
+        }
+
+        .no-stories h3 {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            color: #444;
+        }
+
+        .no-stories a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+            padding: 12px 25px;
+            border: 2px solid #667eea;
+            border-radius: 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .no-stories a:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .gallery-stats {
+            background: #e3f2fd;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            text-align: center;
+            color: #1976d2;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .glass-card {
+                padding: 25px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .story-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .nav {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .story-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>🖼️ Story Gallery</h1>
-            <p>Your AI-generated stories</p>
-        </div>
+        <div class="glass-card">
+            <div class="header">
+                <h1><i class="fas fa-images"></i> Story Gallery</h1>
+                <p>Your AI-generated adventures</p>
+            </div>
 
-        <div class="nav">
-            <a href="/">🏠 Generator</a>
-            <a href="/gallery">🖼️ Gallery</a>
-        </div>
+            <div class="nav">
+                <a href="/"><i class="fas fa-home"></i> Generator</a>
+                <a href="/gallery"><i class="fas fa-images"></i> Gallery</a>
+            </div>
 
-        {% if stories %}
-            <div class="story-grid">
-                {% for story in stories %}
-                <div class="story-card">
-                    <div class="story-title">{{ story.original_prompt[:50] }}{% if story.original_prompt|length > 50 %}...{% endif %}</div>
-                    <div class="story-meta">
-                        📊 {{ story.num_scenes }} scenes<br>
-                        🎨 {{ story.style or 'cartoon' }} style<br>
-                        📅 {{ story.generated_at[:19] }}
-                    </div>
-                    <div class="story-actions">
-                        {% if story.html_file %}
-                        <a href="/generated_stories/{{ story.folder }}/{{ story.html_file }}" target="_blank">📄 View</a>
-                        {% endif %}
-                        {% if story.pdf_file %}
-                        <a href="/generated_stories/{{ story.folder }}/{{ story.pdf_file }}" target="_blank">📄 PDF</a>
-                        {% endif %}
-                    </div>
+            {% if stories %}
+                <div class="gallery-stats">
+                    <i class="fas fa-chart-bar"></i> 
+                    <strong>{{ stories|length }}</strong> stories created | 
+                    <strong>{{ stories|sum(attribute='num_scenes') }}</strong> total scenes | 
+                    <strong>{{ "%.1f"|format(stories|sum(attribute='file_size')) }}</strong> MB total
                 </div>
-                {% endfor %}
-            </div>
-        {% else %}
-            <div class="no-stories">
-                <h3>No stories generated yet</h3>
-                <p>Create your first AI story to see it here!</p>
-                <a href="/" style="color: #667eea;">🚀 Generate Story</a>
-            </div>
-        {% endif %}
+
+                <div class="story-grid">
+                    {% for story in stories %}
+                    <div class="story-card">
+                        <div class="story-title">{{ story.original_prompt }}</div>
+                        
+                        <div class="story-meta">
+                            <div class="meta-item">
+                                <i class="fas fa-user"></i>
+                                {{ story.character_name or 'Auto-chosen character' }}
+                            </div>
+                            <div class="meta-item">
+                                <i class="fas fa-palette"></i>
+                                {{ story.style or 'cartoon' }} style
+                            </div>
+                            <div class="meta-item">
+                                <i class="fas fa-calendar"></i>
+                                {{ story.generated_at[:19].replace('T', ' ') }}
+                            </div>
+                        </div>
+
+                        <div class="story-stats">
+                            <div class="stat">
+                                <div class="stat-value">{{ story.num_scenes }}</div>
+                                <div class="stat-label">Scenes</div>
+                            </div>
+                            <div class="stat">
+                                <div class="stat-value">{{ story.image_count or 0 }}</div>
+                                <div class="stat-label">Images</div>
+                            </div>
+                            <div class="stat">
+                                <div class="stat-value">{{ "%.1f"|format(story.file_size or 0) }} MB</div>
+                                <div class="stat-label">Size</div>
+                            </div>
+                        </div>
+                        
+                        <div class="story-actions">
+                            {% if story.html_file %}
+                            <a href="/generated_stories/{{ story.folder }}/{{ story.html_file }}" target="_blank">
+                                <i class="fas fa-eye"></i> View
+                            </a>
+                            {% endif %}
+                            {% if story.pdf_file %}
+                            <a href="/generated_stories/{{ story.folder }}/{{ story.pdf_file }}" target="_blank" class="pdf">
+                                <i class="fas fa-file-pdf"></i> PDF
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="no-stories">
+                    <h3>No stories generated yet</h3>
+                    <p>Create your first AI story to see it here!</p>
+                    <a href="/">
+                        <i class="fas fa-rocket"></i> Generate Story
+                    </a>
+                </div>
+            {% endif %}
+        </div>
     </div>
 </body>
 </html>
     """
 
-    with open(templates_dir / "index.html", 'w') as f:
+    with open(templates_dir / "index.html", 'w', encoding='utf-8') as f:
         f.write(index_template)
 
-    with open(templates_dir / "gallery.html", 'w') as f:
+    with open(templates_dir / "gallery.html", 'w', encoding='utf-8') as f:
         f.write(gallery_template)
 
-    print("🌐 Starting Refactored Flask Web UI...")
-    print("📱 Open your browser to: http://localhost:8080")
-    print("🔧 Imports from enhanced_story_generator.py")
-    print("📄 Includes PDF generation and story gallery!")
+    print("🚀 Starting Modern AI Story Generator UI v2.0")
+    print("✨ Features: UNLIMITED scenes, modern design, real-time progress")
+    print("🌐 Open your browser to: http://localhost:8080")
+    print("📱 Mobile-friendly responsive design")
+    print("🎯 No scene limitations - create epic 1000+ scene sagas!")
 
     app.run(host='0.0.0.0', port=8080, debug=False)

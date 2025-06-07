@@ -5,123 +5,332 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Story Gallery - AI Story Generator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             color: #333;
+            line-height: 1.6;
         }
+
         .container {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 15px;
-            padding: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
         }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
         .header {
             text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .nav {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
             margin-bottom: 30px;
         }
-        .nav {
-            text-align: center;
-            margin-bottom: 20px;
-        }
+
         .nav a {
             color: #667eea;
             text-decoration: none;
-            margin: 0 15px;
-            font-weight: bold;
+            font-weight: 500;
+            padding: 10px 20px;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
+
         .nav a:hover {
-            text-decoration: underline;
+            background: rgba(102, 126, 234, 0.1);
+            transform: translateY(-2px);
         }
+
         .story-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 25px;
         }
+
         .story-card {
             background: white;
-            border-radius: 10px;
-            padding: 15px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
             border-left: 4px solid #667eea;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
         }
+
+        .story-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+        }
+
         .story-title {
-            font-weight: bold;
-            color: #667eea;
-            margin-bottom: 10px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+            line-height: 1.4;
         }
+
         .story-meta {
-            font-size: 0.9em;
+            font-size: 0.9rem;
             color: #666;
-            margin-bottom: 10px;
+            margin-bottom: 20px;
+            display: grid;
+            gap: 8px;
         }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .story-stats {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            text-align: center;
+        }
+
+        .stat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .stat-value {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: #666;
+        }
+
         .story-actions {
-            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
         }
+
         .story-actions a {
             background: #667eea;
             color: white;
-            padding: 5px 10px;
-            border-radius: 5px;
+            padding: 10px 15px;
+            border-radius: 8px;
             text-decoration: none;
-            margin-right: 10px;
-            font-size: 0.9em;
+            font-size: 0.9rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.3s ease;
+            flex: 1;
+            justify-content: center;
         }
+
         .story-actions a:hover {
             background: #5a6fd8;
+            transform: translateY(-2px);
         }
+
+        .story-actions a.pdf {
+            background: #dc3545;
+        }
+
+        .story-actions a.pdf:hover {
+            background: #c82333;
+        }
+
         .no-stories {
             text-align: center;
             color: #666;
-            margin: 50px 0;
+            margin: 80px 0;
+        }
+
+        .no-stories h3 {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            color: #444;
+        }
+
+        .no-stories a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+            padding: 12px 25px;
+            border: 2px solid #667eea;
+            border-radius: 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .no-stories a:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .gallery-stats {
+            background: #e3f2fd;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            text-align: center;
+            color: #1976d2;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .glass-card {
+                padding: 25px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .story-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .nav {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .story-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>🖼️ Story Gallery</h1>
-            <p>Your AI-generated stories</p>
-        </div>
+        <div class="glass-card">
+            <div class="header">
+                <h1><i class="fas fa-images"></i> Story Gallery</h1>
+                <p>Your AI-generated adventures</p>
+            </div>
 
-        <div class="nav">
-            <a href="/">🏠 Generator</a>
-            <a href="/gallery">🖼️ Gallery</a>
-        </div>
+            <div class="nav">
+                <a href="/"><i class="fas fa-home"></i> Generator</a>
+                <a href="/gallery"><i class="fas fa-images"></i> Gallery</a>
+            </div>
 
-        {% if stories %}
-            <div class="story-grid">
-                {% for story in stories %}
-                <div class="story-card">
-                    <div class="story-title">{{ story.original_prompt[:50] }}{% if story.original_prompt|length > 50 %}...{% endif %}</div>
-                    <div class="story-meta">
-                        📊 {{ story.num_scenes }} scenes<br>
-                        🎨 {{ story.style or 'cartoon' }} style<br>
-                        📅 {{ story.generated_at[:19] }}
-                    </div>
-                    <div class="story-actions">
-                        {% if story.html_file %}
-                        <a href="/generated_stories/{{ story.folder }}/{{ story.html_file }}" target="_blank">📄 View</a>
-                        {% endif %}
-                        {% if story.pdf_file %}
-                        <a href="/generated_stories/{{ story.folder }}/{{ story.pdf_file }}" target="_blank">📄 PDF</a>
-                        {% endif %}
-                    </div>
+            {% if stories %}
+                <div class="gallery-stats">
+                    <i class="fas fa-chart-bar"></i> 
+                    <strong>{{ stories|length }}</strong> stories created | 
+                    <strong>{{ stories|sum(attribute='num_scenes') }}</strong> total scenes | 
+                    <strong>{{ "%.1f"|format(stories|sum(attribute='file_size')) }}</strong> MB total
                 </div>
-                {% endfor %}
-            </div>
-        {% else %}
-            <div class="no-stories">
-                <h3>No stories generated yet</h3>
-                <p>Create your first AI story to see it here!</p>
-                <a href="/" style="color: #667eea;">🚀 Generate Story</a>
-            </div>
-        {% endif %}
+
+                <div class="story-grid">
+                    {% for story in stories %}
+                    <div class="story-card">
+                        <div class="story-title">{{ story.original_prompt }}</div>
+                        
+                        <div class="story-meta">
+                            <div class="meta-item">
+                                <i class="fas fa-user"></i>
+                                {{ story.character_name or 'Auto-chosen character' }}
+                            </div>
+                            <div class="meta-item">
+                                <i class="fas fa-palette"></i>
+                                {{ story.style or 'cartoon' }} style
+                            </div>
+                            <div class="meta-item">
+                                <i class="fas fa-calendar"></i>
+                                {{ story.generated_at[:19].replace('T', ' ') }}
+                            </div>
+                        </div>
+
+                        <div class="story-stats">
+                            <div class="stat">
+                                <div class="stat-value">{{ story.num_scenes }}</div>
+                                <div class="stat-label">Scenes</div>
+                            </div>
+                            <div class="stat">
+                                <div class="stat-value">{{ story.image_count or 0 }}</div>
+                                <div class="stat-label">Images</div>
+                            </div>
+                            <div class="stat">
+                                <div class="stat-value">{{ "%.1f"|format(story.file_size or 0) }} MB</div>
+                                <div class="stat-label">Size</div>
+                            </div>
+                        </div>
+                        
+                        <div class="story-actions">
+                            {% if story.html_file %}
+                            <a href="/generated_stories/{{ story.folder }}/{{ story.html_file }}" target="_blank">
+                                <i class="fas fa-eye"></i> View
+                            </a>
+                            {% endif %}
+                            {% if story.pdf_file %}
+                            <a href="/generated_stories/{{ story.folder }}/{{ story.pdf_file }}" target="_blank" class="pdf">
+                                <i class="fas fa-file-pdf"></i> PDF
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="no-stories">
+                    <h3>No stories generated yet</h3>
+                    <p>Create your first AI story to see it here!</p>
+                    <a href="/">
+                        <i class="fas fa-rocket"></i> Generate Story
+                    </a>
+                </div>
+            {% endif %}
+        </div>
     </div>
 </body>
 </html>
