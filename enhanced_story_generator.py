@@ -6,18 +6,21 @@ This script generates customizable stories with AI-generated images using Google
 Now supports dotenv for API key management and enhanced customization options.
 
 Author: Assistant
-Date: 2025-05-27
+Date: 2025-06-07
+Version: 2.0 - Fixed API issues and improved error handling
 """
 
 import os
 import time
+import json
 from pathlib import Path
 from datetime import datetime
 from dotenv import load_dotenv
-import google.generativeai as genai
-from google.generativeai import types
+from google import genai
+from google.genai import types
 from PIL import Image
 from io import BytesIO
+
 try:
     from weasyprint import HTML, CSS
     WEASYPRINT_AVAILABLE = True
@@ -50,7 +53,13 @@ def setup_client():
     if not api_key:
         raise ValueError("API key is required to use the image generation service")
 
-    return genai.Client(api_key=api_key)
+    try:
+        client = genai.Client(api_key=api_key)
+        print("✅ Successfully connected to Google Gemini API")
+        return client
+    except Exception as e:
+        print(f"❌ Failed to initialize Gemini client: {e}")
+        raise
 
 
 def generate_custom_story_with_images(client, story_prompt, num_scenes, output_dir, delay_between_requests=6):
@@ -72,17 +81,19 @@ def generate_custom_story_with_images(client, story_prompt, num_scenes, output_d
 
     # Enhanced prompt for better story generation
     full_prompt = f"""
-    Consider sociobiological underpinnings of storytelling and the importance of vivid imagery in narratives.
-    You are an expert storyteller and illustrator. Your task is to create a captivating story with images that will engage readers of all ages.
-    Create a {num_scenes}-scene story based on this idea: {story_prompt}
+    You are an expert storyteller and illustrator creating a captivating picture book.
+    
+    Create a {num_scenes}-scene story based on this idea: "{story_prompt}"
 
     Requirements:
-    - Each scene should be distinct and move the story forward
-    - Include vivid descriptions suitable for story illustrations, artistic, or photographic requirements as appropriate
-    - Make it artistic, engaging, and entertaining
-    - Provide the text and generate a corresponding image for each scene
+    - Each scene should advance the story and be distinct
+    - Include vivid, engaging descriptions suitable for illustration
+    - Make it artistic, engaging, and age-appropriate
+    - Generate both descriptive text and a corresponding image for each scene
+    - Keep each scene description between 2-4 sentences
 
-    Please generate exactly {num_scenes} scenes with both text and images.
+    Please create exactly {num_scenes} scenes, each with descriptive text and an accompanying image.
+    Structure: Scene 1: [description], Scene 2: [description], etc.
     """
 
     print(f"🎨 Generating custom story: '{story_prompt}'")
@@ -91,30 +102,60 @@ def generate_custom_story_with_images(client, story_prompt, num_scenes, output_d
     print("⏱️  Rate limit: ~6 seconds between requests (10/minute limit)")
 
     try:
+        print("🔄 Making API request...")
+        
+        # Create the configuration properly
+        config = types.GenerateContentConfig(
+            response_modalities=["Text", "Image"],
+            max_output_tokens=8192
+        )
+        
         response = client.models.generate_content(
             model=model,
             contents=full_prompt,
-            config=types.GenerateContentConfig(
-                response_modalities=["Text", "Image"],
-                # Add some generation parameters for better quality
-                max_output_tokens=8192  # Allow for longer stories
-            ),
+            config=config
         )
+
+        # Debug: Print response structure
+        print("🔍 API Response received, processing...")
+        
+        if not response:
+            raise ValueError("No response received from API")
+        
+        if not hasattr(response, 'candidates') or not response.candidates:
+            raise ValueError("No candidates in API response")
+        
+        if not response.candidates[0]:
+            raise ValueError("First candidate is empty")
+            
+        if not hasattr(response.candidates[0], 'content') or not response.candidates[0].content:
+            raise ValueError("No content in first candidate")
+            
+        if not hasattr(response.candidates[0].content, 'parts') or not response.candidates[0].content.parts:
+            raise ValueError("No parts in content")
 
         story_data = {
             'scenes': [],
             'generated_at': datetime.now().isoformat(),
             'model': model,
             'original_prompt': story_prompt,
-            'num_scenes': num_scenes
+            'num_scenes': num_scenes,
+            'total_parts': len(response.candidates[0].content.parts)
         }
 
         scene_counter = 1
+        total_parts = len(response.candidates[0].content.parts)
+        
+        print(f"📦 Processing {total_parts} parts from API response...")
 
         for i, part in enumerate(response.candidates[0].content.parts):
-            if part.text is not None:
-                print(f"\n📖 Story Text Part {i+1}:")
-                print(part.text[:200] + "..." if len(part.text) > 200 else part.text)
+            print(f"🔄 Processing part {i+1}/{total_parts}...")
+            
+            if hasattr(part, 'text') and part.text is not None:
+                print(f"📖 Found text content (Scene {scene_counter})")
+                text_preview = part.text[:200] + "..." if len(part.text) > 200 else part.text
+                print(f"   Preview: {text_preview}")
+                
                 story_data['scenes'].append({
                     'type': 'text',
                     'content': part.text,
@@ -122,38 +163,63 @@ def generate_custom_story_with_images(client, story_prompt, num_scenes, output_d
                     'part_index': i
                 })
 
-            elif part.inline_data is not None:
-                # Save image to file
-                image = Image.open(BytesIO(part.inline_data.data))
-                image_filename = f"scene_{scene_counter:02d}.png"
-                image_path = output_dir / image_filename
+            elif hasattr(part, 'inline_data') and part.inline_data is not None:
+                print(f"🖼️  Found image data (Scene {scene_counter})")
+                
+                try:
+                    # Save image to file
+                    image = Image.open(BytesIO(part.inline_data.data))
+                    image_filename = f"scene_{scene_counter:02d}.png"
+                    image_path = output_dir / image_filename
 
-                # Save image
-                image.save(image_path, 'PNG')
-                print(f"🖼️  Scene {scene_counter} image saved: {image_filename}")
+                    # Save image with error handling
+                    image.save(image_path, 'PNG')
+                    print(f"✅ Scene {scene_counter} image saved: {image_filename}")
 
-                story_data['scenes'].append({
-                    'type': 'image',
-                    'filename': image_filename,
-                    'path': str(image_path),
-                    'scene_number': scene_counter,
-                    'part_index': i
-                })
+                    story_data['scenes'].append({
+                        'type': 'image',
+                        'filename': image_filename,
+                        'path': str(image_path),
+                        'scene_number': scene_counter,
+                        'part_index': i,
+                        'image_size': image.size
+                    })
 
-                scene_counter += 1
+                    scene_counter += 1
 
-                # Rate limiting delay (respect 10 requests per minute)
-                if scene_counter <= num_scenes:
-                    print(f"⏳ Waiting {delay_between_requests} seconds (rate limiting)...")
-                    time.sleep(delay_between_requests)
+                    # Rate limiting delay (respect 10 requests per minute)
+                    if scene_counter <= num_scenes and i < total_parts - 1:
+                        print(f"⏳ Waiting {delay_between_requests} seconds (rate limiting)...")
+                        time.sleep(delay_between_requests)
+                        
+                except Exception as img_error:
+                    print(f"❌ Error saving image {scene_counter}: {img_error}")
+                    continue
+            else:
+                print(f"⚠️  Unknown part type at index {i}")
+
+        # Save story metadata
+        metadata_path = output_dir / "story_metadata.json"
+        with open(metadata_path, 'w', encoding='utf-8') as f:
+            json.dump(story_data, f, indent=2, ensure_ascii=False)
 
         print(f"\n✅ Generated {scene_counter-1} scene images")
+        print(f"📊 Total parts processed: {total_parts}")
+        print(f"💾 Metadata saved: {metadata_path}")
+        
         return story_data
 
     except Exception as e:
         print(f"❌ Error generating story: {e}")
+        print(f"🔍 Error type: {type(e).__name__}")
+        
         if "quota" in str(e).lower() or "rate" in str(e).lower():
             print("💡 This might be due to rate limiting. Try again later or reduce the number of scenes.")
+        elif "401" in str(e) or "unauthorized" in str(e).lower():
+            print("💡 Check your API key - it might be invalid or expired.")
+        elif "model" in str(e).lower():
+            print("💡 The model might not be available. Try using 'gemini-2.0-flash-lite' instead.")
+        
         return None
 
 
@@ -243,6 +309,15 @@ def create_html_display(story_data, output_dir):
             background: rgba(255, 255, 255, 0.8);
             border-radius: 10px;
         }}
+        .debug-info {{
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 10px 0;
+            font-size: 12px;
+            color: #666;
+        }}
     </style>
 </head>
 <body>
@@ -255,7 +330,8 @@ def create_html_display(story_data, output_dir):
         <h3>📖 Story Details:</h3>
         <ul>
             <li><strong>Original Prompt:</strong> {story_data.get('original_prompt', 'N/A')}</li>
-            <li><strong>Scenes Generated:</strong> {story_data.get('num_scenes', 'N/A')}</li>
+            <li><strong>Scenes Requested:</strong> {story_data.get('num_scenes', 'N/A')}</li>
+            <li><strong>Total Parts Generated:</strong> {story_data.get('total_parts', 'N/A')}</li>
             <li><strong>Generated:</strong> {story_data.get('generated_at', 'N/A')}</li>
             <li><strong>Model:</strong> {story_data.get('model', 'N/A')}</li>
         </ul>
@@ -277,26 +353,29 @@ def create_html_display(story_data, output_dir):
 
     # Generate HTML for each scene
     scene_numbers = sorted(set(list(text_scenes.keys()) + list(image_scenes.keys())))
-    for scene_num in scene_numbers:
-        if isinstance(scene_num, int):  # Only process numbered scenes
-            html_content += '    <div class="scene">\n'
-            html_content += f'        <div class="scene-number">Scene {scene_num}</div>\n'
+    actual_scenes = [sn for sn in scene_numbers if isinstance(sn, int)]
+    
+    for scene_num in actual_scenes:
+        html_content += '    <div class="scene">\n'
+        html_content += f'        <div class="scene-number">Scene {scene_num}</div>\n'
 
-            if scene_num in image_scenes:
-                image_scene = image_scenes[scene_num]
-                html_content += f'        <img src="{image_scene["filename"]}" alt="Scene {scene_num}" class="scene-image">\n'
+        if scene_num in image_scenes:
+            image_scene = image_scenes[scene_num]
+            html_content += f'        <img src="{image_scene["filename"]}" alt="Scene {scene_num}" class="scene-image">\n'
+            if 'image_size' in image_scene:
+                html_content += f'        <div class="debug-info">Image size: {image_scene["image_size"]}</div>\n'
 
-            if scene_num in text_scenes:
-                for text_content in text_scenes[scene_num]:
-                    # Split text into paragraphs for better formatting
-                    paragraphs = text_content.split('\n\n')
-                    for paragraph in paragraphs:
-                        if paragraph.strip():
-                            # Simple markdown-style processing
-                            paragraph = paragraph.replace('**', '<strong>').replace('**', '</strong>')
-                            html_content += f'        <div class="scene-text">{paragraph.strip()}</div>\n'
+        if scene_num in text_scenes:
+            for text_content in text_scenes[scene_num]:
+                # Split text into paragraphs for better formatting
+                paragraphs = text_content.split('\n\n')
+                for paragraph in paragraphs:
+                    if paragraph.strip():
+                        # Simple markdown-style processing
+                        paragraph = paragraph.replace('**', '<strong>').replace('**', '</strong>')
+                        html_content += f'        <div class="scene-text">{paragraph.strip()}</div>\n'
 
-            html_content += '    </div>\n\n'
+        html_content += '    </div>\n\n'
 
     # Add any additional text content
     for scene in story_data['scenes']:
@@ -310,6 +389,7 @@ def create_html_display(story_data, output_dir):
     <div class="generated-info">
         <p>Generated on: {story_data['generated_at']}</p>
         <p>Model: {story_data['model']}</p>
+        <p>Total Parts: {story_data.get('total_parts', 'N/A')}</p>
         <p>✨ Created with Google Gemini AI ✨</p>
     </div>
 </body>
@@ -357,51 +437,73 @@ def create_pdf_from_html(html_path, output_dir):
         print(f"📄 Converting to PDF with enhanced formatting: {pdf_filename}")
 
         # Convert HTML to PDF with improved settings
-        if WEASYPRINT_AVAILABLE:
-            from weasyprint import HTML, CSS
-            
-            # Enhanced CSS for better PDF formatting
-            enhanced_css = CSS(string="""
-                @page {
-                    size: A4;
-                    margin: 20mm;
-                }
-                .scene {
-                    page-break-before: always;
-                    page-break-inside: avoid;
-                }
-                .scene-image {
-                    max-width: 100%;
-                    max-height: 15cm;
-                    page-break-inside: avoid;
-                }
-                body {
-                    font-family: 'Times New Roman', serif;
-                    font-size: 12pt;
-                    line-height: 1.4;
-                }
-                .header {
-                    page-break-after: always;
-                }
-                .story-info {
-                    page-break-after: always;
-                }
-            """)
-            
-            html_doc = HTML(filename=str(html_file))
-            html_doc.write_pdf(str(pdf_path), stylesheets=[enhanced_css])
-            print(f"✅ Enhanced PDF created: {pdf_path}")
-            print("📖 Each scene now starts on a new page for better readability")
-            return str(pdf_path)
-        else:
-            print("⚠️  WeasyPrint HTML class is not available.")
-            return None
+        # Enhanced CSS for better PDF formatting
+        enhanced_css = CSS(string="""
+            @page {
+                size: A4;
+                margin: 20mm;
+            }
+            .scene {
+                page-break-before: always;
+                page-break-inside: avoid;
+            }
+            .scene-image {
+                max-width: 100%;
+                max-height: 15cm;
+                page-break-inside: avoid;
+            }
+            body {
+                font-family: 'Times New Roman', serif;
+                font-size: 12pt;
+                line-height: 1.4;
+            }
+            .header {
+                page-break-after: always;
+            }
+            .story-info {
+                page-break-after: always;
+            }
+            .debug-info {
+                display: none;
+            }
+        """)
+
+        html_doc = HTML(filename=str(html_file))
+        html_doc.write_pdf(str(pdf_path), stylesheets=[enhanced_css])
+        print(f"✅ Enhanced PDF created: {pdf_path}")
+        print("📖 Each scene now starts on a new page for better readability")
+        return str(pdf_path)
 
     except Exception as e:
         print(f"❌ PDF generation failed: {e}")
         print("💡 This might be due to missing system dependencies.")
         print("   On Ubuntu/Debian: sudo apt-get install libpango-1.0-0 libharfbuzz0b libcairo-gobject2")
         return None
+
+
+def test_api_connection():
+    """Test API connection and available models."""
+    try:
+        client = setup_client()
+        
+        # Try a simple text-only request first
+        test_response = client.models.generate_content(
+            model="gemini-2.0-flash-lite",
+            contents="Say hello and confirm you're working."
+        )
+        
+        if test_response and test_response.candidates:
+            print("✅ API connection test successful!")
+            print(f"🤖 Response: {test_response.candidates[0].content.parts[0].text[:100]}...")
+            return True
+        else:
+            print("❌ API test failed - no response")
+            return False
+            
+    except Exception as e:
+        print(f"❌ API connection test failed: {e}")
+        return False
+
 
 def main():
     """Main function to orchestrate the custom story generation process."""
@@ -415,6 +517,12 @@ def main():
     output_dir.mkdir(parents=True, exist_ok=True)
 
     try:
+        # Test API connection first
+        print("\n🔍 Testing API connection...")
+        if not test_api_connection():
+            print("❌ API connection failed. Please check your API key and try again.")
+            return None
+
         # Initialize client
         client = setup_client()
 
@@ -426,14 +534,14 @@ def main():
             story_prompt = "A brave explorer discovering magical creatures in an enchanted forest"
             print(f"Using default story: {story_prompt}")
 
-        num_scenes_input = input("How many scenes? (3-12 recommended, max 1,400): ").strip()
+        num_scenes_input = input("How many scenes? (3-12 recommended, max 20): ").strip()
         try:
             num_scenes = int(num_scenes_input)
             if num_scenes < 1:
                 num_scenes = 3
-            elif num_scenes > 1400:
-                num_scenes = 1400
-                print("⚠️  Limited to 1400 scenes due to daily rate limits")
+            elif num_scenes > 20:
+                num_scenes = 20
+                print("⚠️  Limited to 20 scenes for reasonable generation time")
         except ValueError:
             num_scenes = 6
             print("Using default: 6 scenes")
@@ -474,8 +582,11 @@ def main():
             print("❌ Failed to generate story")
             return None
 
+    except KeyboardInterrupt:
+        print("\n\n⚠️  Generation interrupted by user")
+        return None
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"❌ Unexpected error: {e}")
         return None
 
 
