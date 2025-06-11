@@ -1,7 +1,5 @@
 #!/bin/bash
-"""
-Setup script for the Gemini Picture Book Generator
-"""
+# Setup script for the Gemini Picture Book Generator
 
 echo "🎨 Setting up Gemini Picture Book Generator..."
 

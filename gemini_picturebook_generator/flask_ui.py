@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Modern Flask Web UI for AI Story Generator - Version 2.0
+Modern Flask Web UI for AI Story Generator - Version 2.1
 
 Complete rewrite with:
 - No artificial scene limitations
@@ -9,10 +9,11 @@ Complete rewrite with:
 - Better error handling
 - Enhanced gallery
 - Mobile-friendly interface
+- Package structure support
 
 Author: Assistant
 Date: 2025-06-07
-Version: 2.0 - Unlimited scenes & modern UI
+Version: 2.1.0 - Package Edition
 """
 
 import json
@@ -31,10 +32,11 @@ from flask import (
     send_from_directory,
 )
 
-# Import our story generation functions
-from enhanced_story_generator import (
+# Import our story generation functions (package imports)
+from .enhanced_story_generator import (
     create_html_display,
     create_pdf_from_html,
+    generate_custom_story_with_images,
     setup_client,
     test_api_connection,
 )
@@ -43,7 +45,7 @@ from enhanced_story_generator import (
 load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = 'ai_story_generator_unlimited_v2'
+app.secret_key = 'ai_story_generator_unlimited_v21'
 
 # Global variables for story generation
 generation_results = {}
@@ -92,7 +94,7 @@ def generate_story_background(story_id, story_prompt, num_scenes, character_name
         generation_results[story_id]['message'] = 'Creating output directory...'
         generation_results[story_id]['progress'] = 20
 
-        project_dir = Path(__file__).parent
+        project_dir = Path(__file__).parent.parent
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         output_dir = project_dir / "generated_stories" / f"story_{timestamp}"
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -118,9 +120,9 @@ def generate_story_background(story_id, story_prompt, num_scenes, character_name
             if scene_num > 0:
                 generation_results[story_id]['scenes_completed'].append(scene_num)
 
-        # Create a custom generation function with progress tracking
-        story_data = generate_story_with_progress(
-            client, enhanced_prompt, num_scenes, output_dir, progress_callback
+        # Generate story with images
+        story_data = generate_custom_story_with_images(
+            client, enhanced_prompt, num_scenes, output_dir
         )
 
         if not story_data:
@@ -175,126 +177,13 @@ def generate_story_background(story_id, story_prompt, num_scenes, character_name
             'error': str(e)
         }
 
-def generate_story_with_progress(client, story_prompt, num_scenes, output_dir, progress_callback):
-    """Enhanced story generation with progress tracking."""
-    import time
-
-    from google.genai import types
-
-    # Use the image generation model
-    model = "gemini-2.0-flash-preview-image-generation"
-
-    # Enhanced prompt for better story generation
-    full_prompt = f"""
-    You are an expert storyteller and illustrator creating a captivating picture book.
-
-    Create a {num_scenes}-scene story based on this idea: "{story_prompt}"
-
-    Requirements:
-    - Each scene should advance the story and be distinct
-    - Include vivid, engaging descriptions suitable for illustration
-    - Make it artistic, engaging, and age-appropriate
-    - Generate both descriptive text and a corresponding image for each scene
-    - Keep each scene description between 2-4 sentences
-
-    Please create exactly {num_scenes} scenes, each with descriptive text and an accompanying image.
-    Structure: Scene 1: [description], Scene 2: [description], etc.
-    """
-
-    progress_callback(0, num_scenes, f"Generating {num_scenes}-scene story with AI...")
-
-    try:
-        # Create the configuration properly
-        config = types.GenerateContentConfig(
-            response_modalities=["Text", "Image"],
-            max_output_tokens=8192 * 2  # Increased for longer stories
-        )
-
-        response = client.models.generate_content(
-            model=model,
-            contents=full_prompt,
-            config=config
-        )
-
-        if not response or not response.candidates or not response.candidates[0].content.parts:
-            raise ValueError("No valid response from API")
-
-        story_data = {
-            'scenes': [],
-            'generated_at': datetime.now().isoformat(),
-            'model': model,
-            'original_prompt': story_prompt,
-            'num_scenes': num_scenes,
-            'total_parts': len(response.candidates[0].content.parts)
-        }
-
-        scene_counter = 1
-        total_parts = len(response.candidates[0].content.parts)
-
-        progress_callback(0, num_scenes, f"Processing {total_parts} AI response parts...")
-
-        for i, part in enumerate(response.candidates[0].content.parts):
-            if hasattr(part, 'text') and part.text is not None:
-                story_data['scenes'].append({
-                    'type': 'text',
-                    'content': part.text,
-                    'scene_number': scene_counter if scene_counter <= num_scenes else 'additional',
-                    'part_index': i
-                })
-
-            elif hasattr(part, 'inline_data') and part.inline_data is not None:
-                try:
-                    # Save image to file
-                    from io import BytesIO
-
-                    from PIL import Image
-
-                    image = Image.open(BytesIO(part.inline_data.data))
-                    image_filename = f"scene_{scene_counter:02d}.png"
-                    image_path = output_dir / image_filename
-
-                    # Save image with error handling
-                    image.save(image_path, 'PNG')
-
-                    progress_callback(scene_counter, num_scenes, f"Scene {scene_counter} image created")
-
-                    story_data['scenes'].append({
-                        'type': 'image',
-                        'filename': image_filename,
-                        'path': str(image_path),
-                        'scene_number': scene_counter,
-                        'part_index': i,
-                        'image_size': image.size
-                    })
-
-                    scene_counter += 1
-
-                    # Rate limiting delay (respect 10 requests per minute)
-                    if scene_counter <= num_scenes and i < total_parts - 1:
-                        progress_callback(scene_counter - 1, num_scenes, "Rate limiting pause (6 seconds)...")
-                        time.sleep(6)
-
-                except Exception as img_error:
-                    progress_callback(scene_counter - 1, num_scenes, f"Error saving image {scene_counter}: {img_error}")
-                    continue
-
-        # Save story metadata
-        metadata_path = output_dir / "story_metadata.json"
-        with open(metadata_path, 'w', encoding='utf-8') as f:
-            json.dump(story_data, f, indent=2, ensure_ascii=False)
-
-        progress_callback(num_scenes, num_scenes, "Story generation completed!")
-        return story_data
-
-    except Exception as e:
-        progress_callback(0, num_scenes, f"Error: {e!s}")
-        return None
 
 @app.route('/')
 def index():
     """Main page with modern interface."""
     api_key_configured = bool(os.getenv('GOOGLE_API_KEY'))
     return render_template('index.html', api_key_configured=api_key_configured)
+
 
 @app.route('/generate', methods=['POST'])
 def generate_story():
@@ -335,6 +224,7 @@ def generate_story():
         'estimated_minutes': num_scenes * 6 / 60
     })
 
+
 @app.route('/status/<story_id>')
 def get_status(story_id):
     """Get detailed generation status."""
@@ -343,15 +233,18 @@ def get_status(story_id):
     else:
         return jsonify({'status': 'not_found'}), 404
 
+
 @app.route('/images/<path:filename>')
 def serve_image(filename):
     """Serve generated images."""
-    stories_dir = Path(__file__).parent / "generated_stories"
+    project_dir = Path(__file__).parent.parent
+    stories_dir = project_dir / "generated_stories"
     for story_dir in stories_dir.glob("story_*"):
         image_path = story_dir / filename
         if image_path.exists():
             return send_from_directory(str(story_dir), filename)
     return "Image not found", 404
+
 
 @app.route('/download/<story_id>/<format>')
 def download_story(story_id, format):
@@ -374,10 +267,12 @@ def download_story(story_id, format):
 
     return "File not found", 404
 
+
 @app.route('/gallery')
 def gallery():
     """Enhanced gallery with better sorting and display."""
-    stories_dir = Path(__file__).parent / "generated_stories"
+    project_dir = Path(__file__).parent.parent
+    stories_dir = project_dir / "generated_stories"
     stories = []
 
     if stories_dir.exists():
@@ -408,19 +303,27 @@ def gallery():
 
     return render_template('gallery.html', stories=stories)
 
+
 @app.route('/generated_stories/<path:filename>')
 def serve_generated_file(filename):
     """Serve files from generated_stories directory."""
-    stories_dir = Path(__file__).parent / "generated_stories"
+    project_dir = Path(__file__).parent.parent
+    stories_dir = project_dir / "generated_stories"
     return send_from_directory(str(stories_dir), filename)
 
-if __name__ == '__main__':
-    # Create templates directory and enhanced templates
+
+def create_templates_if_needed():
+    """Create HTML templates if they don't exist."""
     templates_dir = Path(__file__).parent / "templates"
     templates_dir.mkdir(exist_ok=True)
 
-    # Modern, responsive index template with unlimited scenes
-    index_template = """
+    # Only create templates if they don't exist
+    index_template_path = templates_dir / "index.html"
+    gallery_template_path = templates_dir / "gallery.html"
+
+    if not index_template_path.exists():
+        # Modern, responsive index template with unlimited scenes
+        index_template = """
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1144,10 +1047,14 @@ if __name__ == '__main__':
     </script>
 </body>
 </html>
-    """
+        """
 
-    # Enhanced gallery template
-    gallery_template = """
+        with open(index_template_path, 'w', encoding='utf-8') as f:
+            f.write(index_template)
+
+    if not gallery_template_path.exists():
+        # Enhanced gallery template
+        gallery_template = """
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1483,18 +1390,25 @@ if __name__ == '__main__':
     </div>
 </body>
 </html>
-    """
+        """
 
-    with open(templates_dir / "index.html", 'w', encoding='utf-8') as f:
-        f.write(index_template)
+        with open(gallery_template_path, 'w', encoding='utf-8') as f:
+            f.write(gallery_template)
 
-    with open(templates_dir / "gallery.html", 'w', encoding='utf-8') as f:
-        f.write(gallery_template)
 
-    print("🚀 Starting Modern AI Story Generator UI v2.0")
+def main():
+    """Main entry point for the Flask web UI."""
+    print("🚀 Starting Modern AI Story Generator UI v2.1")
     print("✨ Features: UNLIMITED scenes, modern design, real-time progress")
     print("🌐 Open your browser to: http://localhost:8080")
     print("📱 Mobile-friendly responsive design")
     print("🎯 No scene limitations - create epic 1000+ scene sagas!")
 
+    # Create templates if needed
+    create_templates_if_needed()
+
     app.run(host='0.0.0.0', port=8080, debug=False)
+
+
+if __name__ == '__main__':
+    main()

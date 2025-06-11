@@ -1,0 +1,725 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Story Generator - Unlimited Scenes</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            color: #666;
+            font-weight: 300;
+        }
+
+        .nav {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .nav a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+            padding: 10px 20px;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav a:hover {
+            background: rgba(102, 126, 234, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .form-container {
+            display: grid;
+            gap: 25px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            color: #444;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-group input, 
+        .form-group select, 
+        .form-group textarea {
+            padding: 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .form-group input:focus, 
+        .form-group select:focus, 
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-group textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 25px;
+        }
+
+        .scene-input-container {
+            position: relative;
+        }
+
+        .scene-input {
+            width: 100%;
+        }
+
+        .scene-presets {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        .preset-btn {
+            background: #f8f9fa;
+            border: 1px solid #e1e5e9;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: #666;
+        }
+
+        .preset-btn:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .generate-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 18px 40px;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 30px auto;
+            display: block;
+            min-width: 200px;
+        }
+
+        .generate-btn:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .generate-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .progress-container {
+            display: none;
+            margin: 30px 0;
+            text-align: center;
+        }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .progress-text {
+            font-weight: 500;
+            color: #444;
+        }
+
+        .progress-stats {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 12px;
+            background: #f0f0f0;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.5s ease;
+            border-radius: 6px;
+        }
+
+        .story-container {
+            display: none;
+            margin-top: 40px;
+        }
+
+        .story-header {
+            text-align: center;
+            padding: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            margin-bottom: 30px;
+        }
+
+        .story-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .story-meta {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .download-section {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .download-btn {
+            background: #28a745;
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            margin: 8px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .download-btn:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+
+        .scene {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin: 25px 0;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border-left: 4px solid #667eea;
+        }
+
+        .scene-number {
+            color: #667eea;
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .scene img {
+            width: 100%;
+            max-width: 600px;
+            height: auto;
+            border-radius: 12px;
+            margin: 20px auto;
+            display: block;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+
+        .scene-text {
+            font-size: 1.1rem;
+            line-height: 1.8;
+            color: #555;
+            margin: 15px 0;
+        }
+
+        .alert {
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .estimation-info {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            font-size: 14px;
+            border-left: 4px solid #1976d2;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .glass-card {
+                padding: 25px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .nav {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="glass-card">
+            <div class="header">
+                <h1><i class="fas fa-magic"></i> AI Story Generator</h1>
+                <p>Create unlimited epic adventures with AI-generated images</p>
+            </div>
+
+            <div class="nav">
+                <a href="/"><i class="fas fa-home"></i> Generator</a>
+                <a href="/gallery"><i class="fas fa-images"></i> Gallery</a>
+            </div>
+
+            {% if not api_key_configured %}
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle"></i>
+                <div>
+                    <strong>API Key Required</strong><br>
+                    Please configure your Google API key in the .env file to use this application.
+                </div>
+            </div>
+            {% else %}
+
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i>
+                <div>
+                    <strong>Unlimited Scenes!</strong> Create stories with as many scenes as you want. 
+                    API limits: 10 requests/minute (~6 seconds per scene).
+                </div>
+            </div>
+
+            <form id="storyForm" class="form-container">
+                <div class="form-group">
+                    <label for="story_prompt"><i class="fas fa-lightbulb"></i> What's your story idea? *</label>
+                    <textarea id="story_prompt" name="story_prompt" 
+                              placeholder="Describe your epic adventure... A brave dragon who's afraid of heights, a robot that dreams of becoming a chef, a magical library where stories come alive..." 
+                              required></textarea>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="character_name"><i class="fas fa-user"></i> Main character name</label>
+                        <input type="text" id="character_name" name="character_name" 
+                               placeholder="e.g., Luna, Max, Zara, Captain Stardust...">
+                    </div>
+                    <div class="form-group">
+                        <label for="setting"><i class="fas fa-map-marker-alt"></i> Story setting</label>
+                        <input type="text" id="setting" name="setting" 
+                               placeholder="e.g., enchanted forest, space station, underwater city...">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="style"><i class="fas fa-palette"></i> Art style</label>
+                        <select id="style" name="style">
+                            <option value="cartoon">🎨 Cartoon</option>
+                            <option value="anime">🇯🇵 Anime</option>
+                            <option value="realistic">📸 Realistic</option>
+                            <option value="watercolor">🎨 Watercolor</option>
+                            <option value="digital art">💻 Digital Art</option>
+                            <option value="oil painting">🖼️ Oil Painting</option>
+                            <option value="sketch">✏️ Sketch</option>
+                            <option value="fantasy art">⚔️ Fantasy Art</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="num_scenes"><i class="fas fa-list-ol"></i> Number of scenes</label>
+                        <div class="scene-input-container">
+                            <input type="number" id="num_scenes" name="num_scenes" value="6" min="1" max="9999" class="scene-input">
+                            <div class="scene-presets">
+                                <button type="button" class="preset-btn" onclick="setScenes(3)">3 Quick</button>
+                                <button type="button" class="preset-btn" onclick="setScenes(6)">6 Standard</button>
+                                <button type="button" class="preset-btn" onclick="setScenes(12)">12 Long</button>
+                                <button type="button" class="preset-btn" onclick="setScenes(25)">25 Epic</button>
+                                <button type="button" class="preset-btn" onclick="setScenes(50)">50 Novel</button>
+                                <button type="button" class="preset-btn" onclick="setScenes(100)">100 Saga</button>
+                            </div>
+                        </div>
+                        <div id="estimationInfo" class="estimation-info">
+                            <i class="fas fa-clock"></i> Estimated time: ~0.6 minutes (6 scenes)
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="generate-btn" id="generateBtn">
+                    <i class="fas fa-rocket"></i> Generate Story
+                </button>
+            </form>
+
+            <div class="progress-container" id="progressContainer">
+                <div class="progress-header">
+                    <div class="progress-text" id="progressText">Preparing...</div>
+                    <div class="progress-stats" id="progressStats">0%</div>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div id="detailedProgress" style="font-size: 14px; color: #666; margin-top: 10px;"></div>
+            </div>
+
+            <div class="story-container" id="storyContainer">
+                <!-- Story content will be inserted here -->
+            </div>
+
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        let currentStoryId = null;
+        let pollInterval = null;
+
+        // Update estimation when scene count changes
+        document.getElementById('num_scenes').addEventListener('input', updateEstimation);
+
+        function setScenes(count) {
+            document.getElementById('num_scenes').value = count;
+            updateEstimation();
+        }
+
+        function updateEstimation() {
+            const scenes = parseInt(document.getElementById('num_scenes').value) || 6;
+            const minutes = scenes * 6 / 60;
+            const hours = Math.floor(minutes / 60);
+            const remainingMinutes = Math.floor(minutes % 60);
+            
+            let timeStr;
+            if (hours > 0) {
+                timeStr = `~${hours}h ${remainingMinutes}m`;
+            } else {
+                timeStr = `~${minutes.toFixed(1)} minutes`;
+            }
+            
+            document.getElementById('estimationInfo').innerHTML = 
+                `<i class="fas fa-clock"></i> Estimated time: ${timeStr} (${scenes} scenes)`;
+        }
+
+        document.getElementById('storyForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const formData = new FormData(e.target);
+            const data = {
+                story_prompt: formData.get('story_prompt'),
+                character_name: formData.get('character_name'),
+                setting: formData.get('setting'),
+                style: formData.get('style'),
+                num_scenes: parseInt(formData.get('num_scenes'))
+            };
+
+            // Validate
+            if (!data.story_prompt.trim()) {
+                alert('Please enter a story idea');
+                return;
+            }
+
+            if (data.num_scenes < 1) {
+                alert('Please enter at least 1 scene');
+                return;
+            }
+
+            // Confirmation for large stories
+            if (data.num_scenes > 50) {
+                const confirm = window.confirm(
+                    `You're about to create a ${data.num_scenes}-scene story! \n` +
+                    `This will take approximately ${(data.num_scenes * 6 / 60).toFixed(1)} minutes. \n` +
+                    `Are you sure you want to continue?`
+                );
+                if (!confirm) return;
+            }
+
+            // Start generation
+            fetch('/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.error) {
+                    showError(result.error);
+                } else {
+                    currentStoryId = result.story_id;
+                    startPolling();
+                    showProgress();
+                }
+            })
+            .catch(error => {
+                showError('Failed to start generation: ' + error.message);
+            });
+        });
+
+        function showProgress() {
+            document.getElementById('generateBtn').disabled = true;
+            document.getElementById('generateBtn').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+            document.getElementById('progressContainer').style.display = 'block';
+            document.getElementById('storyContainer').style.display = 'none';
+        }
+
+        function hideProgress() {
+            document.getElementById('generateBtn').disabled = false;
+            document.getElementById('generateBtn').innerHTML = '<i class="fas fa-rocket"></i> Generate Story';
+            document.getElementById('progressContainer').style.display = 'none';
+        }
+
+        function startPolling() {
+            pollInterval = setInterval(() => {
+                fetch(`/status/${currentStoryId}`)
+                    .then(response => response.json())
+                    .then(status => {
+                        updateProgress(status);
+
+                        if (status.status === 'complete') {
+                            clearInterval(pollInterval);
+                            hideProgress();
+                            displayStory(status.data);
+                        } else if (status.status === 'error') {
+                            clearInterval(pollInterval);
+                            hideProgress();
+                            showError(status.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Polling error:', error);
+                    });
+            }, 2000);
+        }
+
+        function updateProgress(status) {
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            const progressStats = document.getElementById('progressStats');
+            const detailedProgress = document.getElementById('detailedProgress');
+
+            progressFill.style.width = status.progress + '%';
+            progressText.textContent = status.message || 'Processing...';
+            progressStats.textContent = status.progress + '%';
+
+            if (status.current_scene && status.total_scenes) {
+                detailedProgress.innerHTML = 
+                    `<i class="fas fa-images"></i> Scene ${status.current_scene} of ${status.total_scenes} completed`;
+            }
+        }
+
+        function displayStory(storyData) {
+            const container = document.getElementById('storyContainer');
+            container.innerHTML = '';
+
+            // Story header
+            const header = document.createElement('div');
+            header.className = 'story-header';
+            header.innerHTML = `
+                <div class="story-title">${storyData.original_prompt}</div>
+                <div class="story-meta">
+                    <i class="fas fa-user"></i> ${storyData.character_name || 'Auto-chosen'} | 
+                    <i class="fas fa-map-marker-alt"></i> ${storyData.setting || 'Auto-chosen'} | 
+                    <i class="fas fa-palette"></i> ${storyData.style} style | 
+                    <i class="fas fa-images"></i> ${storyData.num_scenes} scenes
+                </div>
+            `;
+            container.appendChild(header);
+
+            // Download section
+            const downloadSection = document.createElement('div');
+            downloadSection.className = 'download-section';
+            downloadSection.innerHTML = `
+                <h3><i class="fas fa-download"></i> Download Your Story</h3>
+                <a href="/download/${currentStoryId}/html" class="download-btn">
+                    <i class="fas fa-file-code"></i> Download HTML
+                </a>
+                <a href="/download/${currentStoryId}/pdf" class="download-btn">
+                    <i class="fas fa-file-pdf"></i> Download PDF
+                </a>
+            `;
+            container.appendChild(downloadSection);
+
+            // Group scenes
+            const textScenes = {};
+            const imageScenes = {};
+
+            storyData.scenes.forEach(scene => {
+                const sceneNum = scene.scene_number;
+                if (scene.type === 'text') {
+                    if (!textScenes[sceneNum]) {
+                        textScenes[sceneNum] = [];
+                    }
+                    textScenes[sceneNum].push(scene.content);
+                } else if (scene.type === 'image') {
+                    imageScenes[sceneNum] = scene;
+                }
+            });
+
+            // Display scenes
+            const sceneNumbers = [...new Set([...Object.keys(textScenes), ...Object.keys(imageScenes)])]
+                .filter(num => !isNaN(num))
+                .sort((a, b) => parseInt(a) - parseInt(b));
+
+            sceneNumbers.forEach(sceneNum => {
+                const sceneDiv = document.createElement('div');
+                sceneDiv.className = 'scene';
+
+                let sceneHTML = `<div class="scene-number"><i class="fas fa-play-circle"></i> Scene ${sceneNum}</div>`;
+
+                // Add image
+                if (imageScenes[sceneNum]) {
+                    sceneHTML += `<img src="/images/${imageScenes[sceneNum].filename}" alt="Scene ${sceneNum}" loading="lazy">`;
+                }
+
+                // Add text
+                if (textScenes[sceneNum]) {
+                    textScenes[sceneNum].forEach(text => {
+                        sceneHTML += `<div class="scene-text">${text.replace(/\n/g, '<br>')}</div>`;
+                    });
+                }
+
+                sceneDiv.innerHTML = sceneHTML;
+                container.appendChild(sceneDiv);
+            });
+
+            container.style.display = 'block';
+            
+            // Scroll to story
+            container.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function showError(message) {
+            const container = document.getElementById('storyContainer');
+            container.innerHTML = `
+                <div class="alert alert-error">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <div><strong>Error:</strong> ${message}</div>
+                </div>
+            `;
+            container.style.display = 'block';
+        }
+
+        // Initialize
+        updateEstimation();
+    </script>
+</body>
+</html>
+        

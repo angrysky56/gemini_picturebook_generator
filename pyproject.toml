@@ -1,0 +1,94 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gemini-picturebook-generator"
+version = "2.1.0"
+description = "AI-powered story generator with unlimited scenes and MCP server support"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Assistant", email = "assistant@example.com"},
+]
+keywords = ["ai", "story", "generator", "gemini", "mcp", "images"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Graphics",
+    "Topic :: Text Processing :: General",
+]
+
+dependencies = [
+    "google-genai>=0.4.0",
+    "Pillow>=10.0.0",
+    "python-dotenv>=1.0.0",
+    "Flask>=2.3.0",
+    "weasyprint>=65.0.0",
+    "beautifulsoup4>=4.13.0",
+    "mcp>=1.0.0",
+    "aiofiles>=24.1.0",
+    "pydantic>=2.5.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.0.0",
+    "pre-commit>=3.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/angrysky56/gemini-picturebook-generator"
+Repository = "https://github.com/angrysky56/gemini-picturebook-generator"
+Issues = "https://github.com/angrysky56/gemini-picturebook-generator/issues"
+
+[project.scripts]
+gemini-picturebook = "gemini_picturebook_generator.run_ui:main"
+gemini-picturebook-mcp = "gemini_picturebook_generator.mcp_server:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["gemini_picturebook_generator*"]
+
+[tool.setuptools.package-data]
+"gemini_picturebook_generator" = ["templates/*.html", "prompts/*.md", "*.json"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B", "SIM", "PL", "RUF"]
+ignore = ["E501", "B008", "PLR0913", "PLR0911"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["gemini_picturebook_generator"]
+
+[tool.black]
+line-length = 88
+target-version = ['py310', 'py311', 'py312']
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+asyncio_mode = "auto"

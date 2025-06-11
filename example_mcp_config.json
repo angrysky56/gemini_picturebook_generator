@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "gemini-picturebook-generator": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/home/ty/Repositories/ai_workspace/gemini_picturebook_generator",
+        "run",
+        "gemini-picturebook-mcp"
+      ],
+      "env": {
+        "GOOGLE_API_KEY": "your_google_api_key_here",
+        "MCP_SERVER_MODE": "true"
+      }
+    }
+  }
+}

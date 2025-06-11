@@ -1,7 +1,16 @@
+# Legacy requirements.txt for pip compatibility
+# Recommended: Use uv instead of pip for this project
+# Install with: uv sync
+
 google-genai>=0.4.0
 Pillow>=10.0.0
 python-dotenv>=1.0.0
-streamlit>=1.28.0
 Flask>=2.3.0
 weasyprint>=65.0.0
 beautifulsoup4>=4.13.0
+mcp>=1.0.0
+aiofiles>=24.1.0
+pydantic>=2.5.0
+
+# Development dependencies (install with: pip install -r requirements.txt -r requirements-dev.txt)
+# Or use: uv sync --group dev
